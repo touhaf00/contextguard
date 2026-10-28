@@ -22,9 +22,17 @@ function actionableChecks(
 ): string[] {
   const requested =
     (guardReport.requested_checks ?? [])
-      .map((item) => item.check);
+      .map((item) => item.check)
+      .filter(
+        (check) =>
+          check.trim().length > 0
+      );
 
-  const findingChecks =
+  if (requested.length > 0) {
+    return [...new Set(requested)];
+  }
+
+  const fallbackChecks =
     (guardReport.findings ?? [])
       .map((finding) =>
         finding.required_check
@@ -35,10 +43,7 @@ function actionableChecks(
           check.trim().length > 0
       );
 
-  return [...new Set([
-    ...requested,
-    ...findingChecks
-  ])];
+  return [...new Set(fallbackChecks)];
 }
 
 function requestedChecksSignature(
@@ -109,6 +114,13 @@ export async function orchestrate(
     guardReport.verdict === "REVIEW" &&
     retryCount < MAX_RETRIES
   ) {
+    if (!guardReport.retry_recommended) {
+      console.log(
+        "[policy] Guard did not recommend another retry"
+      );
+      break;
+    }
+
     const signature =
       requestedChecksSignature(
         guardReport
