@@ -1,0 +1,31 @@
+{
+  "name": "contextguard",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "check": "tsc --noEmit"
+  },
+  "keywords": [
+    "ai-agents",
+    "verification",
+    "context-engineering",
+    "human-in-the-loop",
+    "agent-safety",
+    "cominty"
+  ],
+  "license": "ISC",
+  "description": "Evidence verification and deterministic safety gating for AI agent actions",
+  "dependencies": {
+    "@cominty-ai/sdk": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  },
+  "type": "module",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  }
+}

@@ -1,0 +1,349 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+  <title>ContextGuard</title>
+  <link rel="stylesheet" href="/styles.css">
+</head>
+
+<body>
+  <div class="noise"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CG</div>
+
+      <div>
+        <div class="brand-name">ContextGuard</div>
+        <div class="brand-subtitle">
+          Evidence verification before agent action
+        </div>
+      </div>
+    </div>
+
+    <div class="mode-badge">
+      <span class="pulse"></span>
+      Safety layer
+    </div>
+  </header>
+
+  <main class="container">
+
+    <section class="hero">
+      <div class="eyebrow">AGENT SAFETY LAYER</div>
+
+      <h1>
+        Verify the context
+        <span>before you trust the action.</span>
+      </h1>
+
+      <p>
+        ContextGuard independently verifies an AI agent's evidence,
+        reasoning and target context before an external action is allowed.
+      </p>
+    </section>
+
+    <section class="panel input-panel">
+      <div class="panel-heading">
+        <div>
+          <div class="section-label">ASSESSMENT</div>
+          <h2>Release readiness check</h2>
+        </div>
+
+        <div class="readonly">
+          READ ONLY
+        </div>
+      </div>
+
+      <div class="form-grid">
+        <label>
+          Repository
+          <input
+            id="repository"
+            value="touhaf00/tp-cicd"
+          >
+        </label>
+
+        <label>
+          Target type
+          <select id="targetType">
+            <option value="tag" selected>tag</option>
+            <option value="branch">branch</option>
+            <option value="commit">commit</option>
+            <option value="release">release</option>
+            <option value="current_state">current state</option>
+          </select>
+        </label>
+
+        <label>
+          Target reference
+          <input
+            id="targetReference"
+            value="v1.1.0"
+          >
+        </label>
+      </div>
+
+      <label class="mission-label">
+        Mission
+        <textarea
+          id="mission"
+          rows="3"
+        >Assess whether this repository target is ready for release.</textarea>
+      </label>
+
+      <label class="demo-scenario-label">
+        Demo scenario
+
+        <select id="demoScenario">
+          <option value="review" selected>
+            REVIEW after retry
+          </option>
+
+          <option value="ready_pass">
+            READY + PASS
+          </option>
+
+          <option value="not_ready_pass">
+            NOT_READY + PASS
+          </option>
+
+          <option value="unknown_pass">
+            UNKNOWN + PASS
+          </option>
+
+          <option value="verification_fail">
+            Verification FAIL
+          </option>
+        </select>
+      </label>
+
+      <div class="button-row">
+        <button id="demoButton" class="secondary-button">
+          Load demo
+        </button>
+
+        <button id="liveButton">
+          Run live assessment
+        </button>
+      </div>
+
+      <div class="warnings">
+        <p>
+          <strong>Demo:</strong>
+          uses a saved result and does not call Cominty or GitHub.
+        </p>
+
+        <p>
+          <strong>Live:</strong>
+          runs the Worker and ContextGuard and may consume Cominty credits.
+        </p>
+      </div>
+    </section>
+
+    <section id="results" class="results hidden">
+
+      <div class="timeline">
+
+        <article class="step-card">
+          <div class="step-number">01</div>
+
+          <div class="step-body">
+            <div class="step-top">
+              <div>
+                <div class="section-label">WORKER AGENT</div>
+                <h3>Repository investigation</h3>
+              </div>
+
+              <span id="workerDecision" class="status neutral">
+                —
+              </span>
+            </div>
+
+            <p id="workerSummary"></p>
+
+            <div class="metric">
+              <span>Confidence</span>
+              <strong id="workerConfidence">—</strong>
+            </div>
+          </div>
+        </article>
+
+        <div class="connector">
+          <div></div>
+        </div>
+
+        <article class="step-card">
+          <div class="step-number">02</div>
+
+          <div class="step-body">
+            <div class="step-top">
+              <div>
+                <div class="section-label">CONTEXTGUARD</div>
+                <h3>Independent verification</h3>
+              </div>
+
+              <span id="guardVerdict" class="status neutral">
+                —
+              </span>
+            </div>
+
+            <p id="guardSummary"></p>
+
+            <div class="metrics">
+              <div class="metric">
+                <span>Evidence coverage</span>
+                <strong id="coverage">—</strong>
+              </div>
+
+              <div class="metric">
+                <span>Claim accuracy</span>
+                <strong id="accuracy">—</strong>
+              </div>
+
+              <div class="metric">
+                <span>Risk</span>
+                <strong id="risk">—</strong>
+              </div>
+            </div>
+
+            <div id="findingsSection" class="finding-card hidden">
+              <div class="finding-label">VERIFICATION FINDINGS</div>
+              <div id="findingsList"></div>
+            </div>
+          </div>
+        </article>
+
+        <div class="connector">
+          <div></div>
+        </div>
+
+        <article id="retryCard" class="step-card hidden">
+          <div class="step-number">03</div>
+
+          <div class="step-body">
+            <div class="step-top">
+              <div>
+                <div class="section-label">TARGETED RETRY</div>
+                <h3>Evidence recovery</h3>
+              </div>
+
+              <span class="status review">
+                MAX 2 RETRIES
+              </span>
+            </div>
+
+            <p>
+              ContextGuard requested focused additional evidence.
+              The Worker may perform up to two targeted retries instead of
+              repeating the full investigation.
+            </p>
+
+            <div class="policy-grid">
+              <div>
+                <span>Retry used</span>
+                <strong id="retryUsed">—</strong>
+              </div>
+
+              <div>
+                <span>Strategy</span>
+                <strong>Targeted checks only</strong>
+              </div>
+
+              <div>
+                <span>Repository writes</span>
+                <strong>None</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+
+        <div id="retryConnector" class="connector hidden">
+          <div></div>
+        </div>
+
+        <article class="step-card">
+          <div id="gateStepNumber" class="step-number">04</div>
+
+          <div class="step-body">
+            <div class="step-top">
+              <div>
+                <div class="section-label">DETERMINISTIC GATE</div>
+                <h3>Action policy</h3>
+              </div>
+
+              <span id="finalStatus" class="status neutral">
+                —
+              </span>
+            </div>
+
+            <div class="policy-grid">
+              <div>
+                <span>Retries</span>
+                <strong id="retries">—</strong>
+              </div>
+
+              <div>
+                <span>External action</span>
+                <strong id="externalAction">—</strong>
+              </div>
+
+              <div>
+                <span>Human approval</span>
+                <strong id="humanApproval">—</strong>
+              </div>
+            </div>
+          </div>
+        </article>
+
+      </div>
+
+      <section id="approvalSection" class="approval-panel hidden">
+        <div>
+          <div class="section-label">HUMAN APPROVAL</div>
+          <h3>Explicit approval required</h3>
+
+          <p>
+            ContextGuard has passed the assessment, but no external action
+            may proceed until a human explicitly approves it.
+          </p>
+        </div>
+
+        <button id="approveButton" class="approve-button">
+          Approve next stage
+        </button>
+
+        <div id="approvalResult" class="approval-result hidden">
+          ✓ Human approval recorded locally.
+          No external action was executed.
+        </div>
+      </section>
+
+      <section class="safety-banner">
+        <div class="shield">✓</div>
+
+        <div>
+          <strong>The LLM does not own the final gate.</strong>
+          <p>
+            PASS, REVIEW and FAIL are interpreted by deterministic
+            orchestration policy. No repository write is executed
+            automatically.
+          </p>
+        </div>
+      </section>
+
+    </section>
+
+  </main>
+
+  <footer>
+    ContextGuard · Worker → Independent Verifier → Human Gate
+  </footer>
+
+  <script src="/app.js"></script>
+</body>
+</html>
