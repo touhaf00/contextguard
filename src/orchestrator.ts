@@ -17,19 +17,43 @@ import type {
 
 export const MAX_RETRIES = 2;
 
+function actionableChecks(
+  guardReport: GuardReport
+): string[] {
+  const requested =
+    (guardReport.requested_checks ?? [])
+      .map((item) => item.check);
+
+  const findingChecks =
+    (guardReport.findings ?? [])
+      .map((finding) =>
+        finding.required_check
+      )
+      .filter(
+        (check): check is string =>
+          typeof check === "string" &&
+          check.trim().length > 0
+      );
+
+  return [...new Set([
+    ...requested,
+    ...findingChecks
+  ])];
+}
+
 function requestedChecksSignature(
   guardReport: GuardReport
 ): string | null {
   const checks =
-    guardReport.requested_checks ?? [];
+    actionableChecks(guardReport);
 
   if (checks.length === 0) {
     return null;
   }
 
   return checks
-    .map((item) =>
-      item.check
+    .map((check) =>
+      check
         .toLowerCase()
         .replace(/\s+/g, " ")
         .trim()
@@ -85,13 +109,6 @@ export async function orchestrate(
     guardReport.verdict === "REVIEW" &&
     retryCount < MAX_RETRIES
   ) {
-    if (!guardReport.retry_recommended) {
-      console.log(
-        "[policy] Guard did not recommend another retry"
-      );
-      break;
-    }
-
     const signature =
       requestedChecksSignature(
         guardReport

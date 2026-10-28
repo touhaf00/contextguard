@@ -9,7 +9,12 @@ const ui = {
   repository: byId("repository"),
   targetType: byId("targetType"),
   targetReference: byId("targetReference"),
-  mission: byId("mission"),
+
+  assessmentType: byId("assessmentType"),
+  assessmentDescription: byId("assessmentDescription"),
+  advancedOptions: byId("advancedOptions"),
+  customInstructions: byId("customInstructions"),
+  customInstructionsLabel: byId("customInstructionsLabel"),
 
   results: byId("results"),
 
@@ -387,16 +392,30 @@ ui.liveButton.addEventListener(
     const targetReference =
       ui.targetReference.value.trim();
 
-    const mission =
-      ui.mission.value.trim();
+    const assessmentType =
+      ui.assessmentType.value;
+
+    const customInstructions =
+      ui.customInstructions.value.trim();
+
+    if (!repository) {
+      alert(
+        "Repository is required."
+      );
+
+      return;
+    }
 
     if (
-      !repository ||
-      !mission
+      assessmentType === "custom" &&
+      !customInstructions
     ) {
       alert(
-        "Repository and mission are required."
+        "Custom assessment instructions are required."
       );
+
+      ui.advancedOptions.open = true;
+      ui.customInstructions.focus();
 
       return;
     }
@@ -456,7 +475,11 @@ ui.liveButton.addEventListener(
                   : {})
               },
 
-              mission
+              assessment_type:
+                assessmentType,
+
+              custom_instructions:
+                customInstructions
             })
           }
         );
@@ -477,6 +500,49 @@ ui.liveButton.addEventListener(
     }
   }
 );
+
+const assessmentDescriptions = {
+  technical_release:
+    "Agents autonomously discover and verify the repository's release-relevant tests, builds, workflows and technical blockers.",
+
+  deployment_readiness:
+    "Agents verify whether the target satisfies the repository-established prerequisites for deployment approval.",
+
+  custom:
+    "Define a custom verification mission. ContextGuard will still independently verify the Worker's evidence."
+};
+
+function updateAssessmentUi() {
+  const type =
+    ui.assessmentType.value;
+
+  ui.assessmentDescription.textContent =
+    assessmentDescriptions[type] ??
+    assessmentDescriptions.technical_release;
+
+  if (type === "custom") {
+    ui.customInstructionsLabel.textContent =
+      "Custom assessment instructions";
+
+    ui.customInstructions.placeholder =
+      "Describe the decision the agents should investigate and verify.";
+
+    ui.advancedOptions.open = true;
+  } else {
+    ui.customInstructionsLabel.textContent =
+      "Additional instructions (optional)";
+
+    ui.customInstructions.placeholder =
+      "Add constraints or repository-specific context only if needed.";
+  }
+}
+
+ui.assessmentType.addEventListener(
+  "change",
+  updateAssessmentUi
+);
+
+updateAssessmentUi();
 
 ui.targetType.addEventListener(
   "change",

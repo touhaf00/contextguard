@@ -819,3 +819,36 @@ button:disabled {
 .hidden {
   display: none !important;
 }
+
+.assessment-choice {
+  margin-top: 24px;
+}
+
+.assessment-description {
+  margin: 10px 0 0;
+  max-width: 760px;
+  line-height: 1.6;
+  opacity: 0.78;
+}
+
+.advanced-options {
+  margin-top: 20px;
+  border: 1px solid rgba(148, 163, 184, 0.16);
+  border-radius: 14px;
+  padding: 14px 16px;
+}
+
+.advanced-options summary {
+  cursor: pointer;
+  font-weight: 700;
+  user-select: none;
+}
+
+.advanced-options label {
+  display: block;
+  margin-top: 16px;
+}
+
+.advanced-options textarea {
+  margin-top: 8px;
+}

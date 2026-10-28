@@ -40,15 +40,36 @@ Return JSON only.
 function buildRetryPrompt(
   guardReport: GuardReport
 ): string {
+  const requested =
+    (guardReport.requested_checks ?? [])
+      .map((item) => ({
+        id: item.finding_id,
+        check: item.check
+      }));
+
+  const fallbackChecks =
+    (guardReport.findings ?? [])
+      .filter(
+        (finding) =>
+          typeof finding.required_check === "string" &&
+          finding.required_check.trim().length > 0
+      )
+      .map((finding) => ({
+        id: finding.id,
+        check: finding.required_check as string
+      }));
+
   const checks =
-    guardReport.requested_checks ?? [];
+    requested.length > 0
+      ? requested
+      : fallbackChecks;
 
   const requestedChecks =
     checks.length > 0
       ? checks
           .map(
             (item, index) =>
-              `${index + 1}. [${item.finding_id}] ${item.check}`
+              `${index + 1}. [${item.id}] ${item.check}`
           )
           .join("\n")
       : "No targeted checks were supplied.";

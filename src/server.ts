@@ -24,6 +24,12 @@ import {
 } from "./orchestrator.js";
 
 import {
+  ASSESSMENT_TYPES,
+  buildAssessmentMission,
+  type AssessmentType
+} from "./policies.js";
+
+import {
   TARGET_TYPES,
   type Mission
 } from "./types.js";
@@ -139,13 +145,51 @@ function validateMission(
     );
   }
 
+  const legacyMission =
+    typeof input.mission === "string"
+      ? input.mission.trim()
+      : "";
+
+  const rawAssessmentType =
+    typeof input.assessment_type === "string"
+      ? input.assessment_type.trim()
+      : "";
+
+  let assessmentType: AssessmentType;
+
+  if (rawAssessmentType) {
+    if (
+      !ASSESSMENT_TYPES.includes(
+        rawAssessmentType as AssessmentType
+      )
+    ) {
+      throw new HttpError(
+        400,
+        "Invalid assessment type."
+      );
+    }
+
+    assessmentType =
+      rawAssessmentType as AssessmentType;
+  } else if (legacyMission) {
+    // Backward compatibility with the previous API.
+    assessmentType = "custom";
+  } else {
+    assessmentType = "technical_release";
+  }
+
+  const customInstructions =
+    typeof input.custom_instructions === "string"
+      ? input.custom_instructions.trim()
+      : legacyMission;
+
   if (
-    typeof input.mission !== "string" ||
-    !input.mission.trim()
+    assessmentType === "custom" &&
+    !customInstructions
   ) {
     throw new HttpError(
       400,
-      "Mission is required."
+      "Custom assessment instructions are required."
     );
   }
 
@@ -208,7 +252,10 @@ function validateMission(
     },
 
     mission:
-      input.mission.trim(),
+      buildAssessmentMission(
+        assessmentType,
+        customInstructions
+      ),
 
     constraints: {
       read_only: true

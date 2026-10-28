@@ -88,13 +88,45 @@
         </label>
       </div>
 
-      <label class="mission-label">
-        Mission
-        <textarea
-          id="mission"
-          rows="3"
-        >Assess whether this repository target is ready for release.</textarea>
-      </label>
+      <div class="assessment-choice">
+        <label>
+          Assessment type
+          <select id="assessmentType">
+            <option value="technical_release" selected>
+              Technical release readiness
+            </option>
+
+            <option value="deployment_readiness">
+              Deployment readiness
+            </option>
+
+            <option value="custom">
+              Custom assessment
+            </option>
+          </select>
+        </label>
+
+        <p id="assessmentDescription" class="assessment-description">
+          Agents autonomously discover and verify the repository's
+          release-relevant tests, builds, workflows and technical blockers.
+        </p>
+      </div>
+
+      <details id="advancedOptions" class="advanced-options">
+        <summary>Advanced options</summary>
+
+        <label>
+          <span id="customInstructionsLabel">
+            Additional instructions (optional)
+          </span>
+
+          <textarea
+            id="customInstructions"
+            rows="3"
+            placeholder="Add constraints or repository-specific context only if needed."
+          ></textarea>
+        </label>
+      </details>
 
       <label class="demo-scenario-label">
         Demo scenario
