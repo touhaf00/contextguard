@@ -406,7 +406,7 @@ ui.liveButton.addEventListener(
 
     const confirmed =
       confirm(
-        "Run a live ContextGuard assessment?\n\n" +
+        "Run this ContextGuard assessment?\n\n" +
         "This calls the Worker and ContextGuard and may consume Cominty credits.\n\n" +
         "No GitHub write operation will be performed."
       );
@@ -418,7 +418,7 @@ ui.liveButton.addEventListener(
     ui.liveButton.disabled = true;
 
     ui.liveButton.textContent =
-      "Running live assessment...";
+      "Running assessment...";
 
     try {
       const data =
@@ -461,13 +461,13 @@ ui.liveButton.addEventListener(
       alert(
         error instanceof Error
           ? error.message
-          : "Live assessment failed."
+          : "Assessment failed."
       );
     } finally {
       ui.liveButton.disabled = false;
 
       ui.liveButton.textContent =
-        "Run live assessment";
+        "Run assessment";
     }
   }
 );

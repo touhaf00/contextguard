@@ -258,8 +258,16 @@ textarea {
   line-height: 1.5;
 }
 
-.mission-label {
-  margin-top: 14px;
+input::placeholder,
+textarea::placeholder {
+  color: #566174;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+  border-color: #647fc8;
+  box-shadow: 0 0 0 3px rgba(140, 168, 255, 0.08);
 }
 
 button {
@@ -284,12 +292,6 @@ button {
 
 button:hover {
   filter: brightness(1.06);
-}
-
-.demo-note {
-  margin: 12px 0 0;
-  color: #697588;
-  font-size: 11px;
 }
 
 .results {
@@ -528,6 +530,7 @@ footer {
 
 .button-row button {
   margin-top: 0;
+  min-width: 190px;
 }
 
 button:disabled {
@@ -800,11 +803,6 @@ button:disabled {
   color: var(--red);
 }
 
-
-.demo-scenario-label {
-  margin-top: 16px;
-  max-width: 310px;
-}
 
 .hidden {
   display: none !important;

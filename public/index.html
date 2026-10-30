@@ -74,11 +74,11 @@
             <option value="" selected disabled>
               Select target type
             </option>
-            <option value="tag">tag</option>
-            <option value="branch">branch</option>
-            <option value="commit">commit</option>
-            <option value="release">release</option>
-            <option value="current_state">current state</option>
+            <option value="tag">Tag</option>
+            <option value="branch">Branch</option>
+            <option value="commit">Commit</option>
+            <option value="release">Release</option>
+            <option value="current_state">Current state</option>
           </select>
         </label>
 
@@ -133,15 +133,16 @@
 
       <div class="button-row">
         <button id="liveButton">
-          Run live assessment
+          Run assessment
         </button>
       </div>
 
       <div class="warnings">
         <p>
-          <strong>Live assessment:</strong>
-          runs the Worker and ContextGuard in read-only mode and may consume
-          Cominty credits. No repository write is performed automatically.
+          <strong>Read-only assessment:</strong>
+          runs both the Worker and ContextGuard using repository evidence.
+          It may consume Cominty credits. No repository write is performed
+          automatically.
         </p>
       </div>
     </section>
