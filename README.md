@@ -1,85 +1,98 @@
 # ContextGuard
 
-> Verify the context before you trust the action.
+> **Verify the context before you trust the action.**
 
-ContextGuard is an evidence-verification and safety layer for AI agents.
+ContextGuard is an independent evidence-verification and safety layer for AI agents.
 
-Instead of allowing an agent to act directly from its own assessment, ContextGuard introduces an independent verification step and a deterministic policy before any external action can proceed.
+Instead of allowing an agent to act directly from its own assessment, ContextGuard introduces a second AI agent that independently verifies the evidence and reasoning, followed by a deterministic application-level gate and explicit human approval.
 
-The current demo focuses on software release readiness using GitHub repository evidence.
+The project is built with the **Cominty SDK and Managed Agents** and currently evaluates GitHub repository targets in read-only mode.
+
+---
 
 ## Why ContextGuard?
 
-AI agents can retrieve valid information and still draw the wrong conclusion.
+AI agents can retrieve correct information and still reach the wrong conclusion.
 
-A successful workflow, for example, does not necessarily prove that the real action suggested by its name happened.
+For example, a workflow job named `deploy` may complete successfully while only printing a message and performing no real deployment.
 
-A job called `deploy` may finish successfully while performing no actual deployment.
-
-ContextGuard separates:
+ContextGuard therefore separates:
 
 - what is configured;
 - what was executed;
 - whether execution succeeded;
-- whether the intended semantic effect actually happened.
+- whether command output was actually observed;
+- whether the intended semantic effect was verified.
 
-This helps prevent an agent from turning incomplete context into an unsafe action.
+This helps prevent incomplete or misleading context from being promoted directly into an external action.
+
+---
 
 ## Architecture
 
 ```text
-Repository + Target + Mission
-            |
-            v
-     Release Readiness Worker
-            |
-            | structured evidence report
-            v
+Repository + Target + Assessment
+              |
+              v
+        Worker Agent
+   repository investigation
+              |
+              | structured evidence report
+              v
         ContextGuard
-     independent verifier
-            |
-       +----+----+
-       |    |    |
-      PASS REVIEW FAIL
-       |    |    |
-       |    |    +--> block
-       |    |
-       |    +--> targeted retry
-       |         max 2
-       |
-       v
- Deterministic Safety Gate
-       |
-       +--> READY + PASS
-       |    human approval required
-       |
-       +--> NOT_READY + PASS
-       |    blocked
-       |
-       +--> UNKNOWN + PASS
-       |    stopped safely
-       |
-       +--> unresolved REVIEW
-            stopped safely
+    independent verification
+              |
+        +-----+-----+
+        |     |     |
+       PASS REVIEW FAIL
+        |     |     |
+        |     |     +----> block
+        |     |
+        |     +----------> targeted evidence recovery
+        |                  max 2 retries
+        |
+        v
+   Deterministic Gate
+        |
+        +--> READY + PASS
+        |    AWAITING_HUMAN_APPROVAL
+        |
+        +--> NOT_READY + PASS
+        |    BLOCKED_NOT_READY
+        |
+        +--> UNKNOWN + PASS
+        |    STOPPED_UNKNOWN
+        |
+        +--> unresolved REVIEW
+        |    STOPPED_REVIEW
+        |
+        +--> FAIL
+             BLOCKED_VERIFICATION
 ```
 
-The Worker and ContextGuard have different responsibilities.
+The LLM does not own the final gate.
 
-### Release Readiness Worker
+---
 
-The Worker investigates the requested repository and produces one business decision:
+## Agent roles
+
+### Worker Agent
+
+The Worker investigates the requested repository and target using authorized read-only repository evidence.
+
+It returns one business decision:
 
 - `READY`
 - `NOT_READY`
 - `UNKNOWN`
 
-Decision-critical claims must be supported by repository evidence.
+Decision-critical claims must be supported by evidence.
 
-The Worker operates in read-only mode.
+The Worker must preserve uncertainty when the available evidence is insufficient.
 
 ### ContextGuard
 
-ContextGuard independently evaluates the Worker's report.
+ContextGuard independently evaluates the Worker's evidence and reasoning.
 
 It returns one verification verdict:
 
@@ -87,9 +100,7 @@ It returns one verification verdict:
 - `REVIEW`
 - `FAIL`
 
-A `PASS` does **not** mean that the repository is ready.
-
-It means that the Worker's conclusion is sufficiently supported.
+The business decision and verification verdict are intentionally separate.
 
 For example:
 
@@ -98,83 +109,220 @@ Worker: NOT_READY
 Guard: PASS
 ```
 
-means that ContextGuard independently verified that the repository is correctly assessed as not ready.
+means that ContextGuard independently verified that the Worker's `NOT_READY` conclusion is well supported.
 
-## Deterministic policy
+A `PASS` does **not** mean that the repository itself is ready.
 
-The final action gate belongs to application code, not to the LLM.
+---
 
-| Worker | Guard | Result |
+## Assessment modes
+
+ContextGuard currently supports three assessment modes.
+
+### Technical release readiness
+
+The agents autonomously discover the repository-established mechanisms relevant to technical readiness, including tests, validation checks, builds, workflows and material technical blockers.
+
+The policy does not invent requirements simply because they are common industry conventions.
+
+Deployment, publication or other release mechanisms are only considered mandatory when repository evidence establishes them as requirements.
+
+### Deployment readiness
+
+The agents evaluate whether the selected target satisfies the repository-established prerequisites required to proceed toward deployment approval.
+
+A workflow or step named `deploy` is not accepted as proof that a real deployment mechanism exists.
+
+ContextGuard distinguishes successful workflow execution from the semantic effect implied by the workflow name.
+
+### Custom assessment
+
+A user can define a specific verification mission.
+
+The Worker investigates only the evidence relevant to that mission, while ContextGuard independently verifies the resulting assessment.
+
+This allows the same architecture to support repository-specific or task-specific decisions without hard-coding one technology stack.
+
+---
+
+## Deterministic safety policy
+
+The final policy is enforced by application code rather than by either AI agent.
+
+| Worker decision | Guard verdict | Final status |
 |---|---|---|
-| READY | PASS | `AWAITING_HUMAN_APPROVAL` |
-| NOT_READY | PASS | `BLOCKED_NOT_READY` |
-| UNKNOWN | PASS | `STOPPED_UNKNOWN` |
-| any | REVIEW | targeted retry, then `STOPPED_REVIEW` if unresolved |
-| any | FAIL | `BLOCKED_VERIFICATION` |
+| `READY` | `PASS` | `AWAITING_HUMAN_APPROVAL` |
+| `NOT_READY` | `PASS` | `BLOCKED_NOT_READY` |
+| `UNKNOWN` | `PASS` | `STOPPED_UNKNOWN` |
+| any | `REVIEW` | targeted retry or `STOPPED_REVIEW` |
+| any | `FAIL` | `BLOCKED_VERIFICATION` |
 
-ContextGuard allows at most two targeted retries.
+An external action is never executed automatically.
 
-A retry only occurs when:
+---
+
+## Targeted evidence recovery
+
+ContextGuard can request focused evidence recovery when a decision-critical gap may realistically be resolved.
+
+A retry occurs only when:
 
 - the Guard returns `REVIEW`;
-- the Guard recommends another retry;
+- the Guard explicitly recommends another retry;
 - precise requested checks are available;
-- those checks have not already been attempted;
-- the retry limit has not been reached.
+- the requested evidence has not already been attempted;
+- the evidence is realistically recoverable;
+- the maximum retry count has not been reached.
 
-Uncertainty is preserved rather than forced into a binary decision.
+The orchestration layer allows at most **two targeted retries**.
 
-## Semantic verification example
+The Worker receives only the requested checks instead of repeating the entire repository investigation.
 
-The demo repository contains a CI/CD workflow with a job named `deploy`.
-
-The workflow job can report:
-
-```text
-Job status: SUCCESS
-```
-
-while its implementation does not perform a real deployment.
-
-ContextGuard therefore distinguishes:
+If evidence becomes terminally unavailable, ContextGuard can return:
 
 ```text
-Job status:        SUCCESS
-Actual deployment: NOT VERIFIED
+REVIEW
+retry_recommended = false
 ```
 
-This is the core idea behind ContextGuard:
+and the deterministic gate stops the assessment safely.
 
-**successful execution is not automatically proof of the intended effect.**
+---
 
-## Safety
+## Evidence semantics
 
-The current implementation follows several safety rules:
+ContextGuard distinguishes several evidence levels:
+
+```text
+configured
+    ↓
+executed
+    ↓
+completed successfully
+    ↓
+output directly observed
+    ↓
+semantic effect verified
+```
+
+One level is never automatically promoted into another.
+
+For example:
+
+```text
+Job name:    deploy
+Conclusion:  success
+```
+
+does not prove:
+
+```text
+Deployment occurred: yes
+```
+
+The actual configured operation or resulting effect must support that claim when it is decision-critical.
+
+---
+
+## Safety properties
+
+The current implementation enforces the following principles:
 
 - repository investigation is read-only;
-- agents cannot directly trigger the final action;
-- `allowed_to_act` from the Guard is advisory only;
-- the orchestration layer owns the real policy;
-- unresolved uncertainty stops the workflow;
+- no agent may modify the repository;
+- the Worker cannot directly authorize an action;
+- ContextGuard independently verifies decision-critical evidence;
+- `allowed_to_act` is advisory only;
+- deterministic application code owns the final gate;
+- uncertainty is preserved instead of being forced into a binary answer;
 - duplicate retry requests are not repeated;
+- terminally unavailable evidence does not trigger endless retries;
 - external actions are never executed automatically;
-- human approval is required after `READY + PASS`.
+- `READY + PASS` still requires explicit human approval.
 
-The current Human Approval button records approval locally for demonstration purposes. It does not write to GitHub.
+The current Human Approval button records approval locally for demonstration purposes.
 
-## Demo mode
+It does **not** execute a GitHub action.
 
-The interface includes local scenarios that can be tested without calling Cominty:
+---
 
-- `REVIEW after retry`
-- `READY + PASS`
-- `NOT_READY + PASS`
-- `UNKNOWN + PASS`
-- `Verification FAIL`
+## Validated behaviors
 
-Demo mode does not consume Cominty credits.
+ContextGuard has been exercised against controlled and real repositories with different technology stacks and decision outcomes.
 
-Live mode calls the real Worker and ContextGuard agents.
+### Controlled Python / Docker CI
+
+Validated:
+
+```text
+READY + PASS
+→ AWAITING_HUMAN_APPROVAL
+```
+
+A deliberately failing test scenario validated:
+
+```text
+NOT_READY + PASS
+→ BLOCKED_NOT_READY
+```
+
+A workflow containing an echo-only `deploy` step validated semantic-effect handling:
+
+```text
+UNKNOWN + PASS
+→ STOPPED_UNKNOWN
+```
+
+### Terraform repository
+
+A real Terraform repository validated repository-agnostic discovery without assuming Python, Docker or another unrelated build system.
+
+Result:
+
+```text
+READY + PASS
+→ AWAITING_HUMAN_APPROVAL
+```
+
+### JavaScript GitHub Action repository
+
+A larger real-world repository exposed incomplete and expired execution evidence.
+
+ContextGuard preserved uncertainty instead of forcing a decision:
+
+```text
+UNKNOWN + REVIEW
+→ STOPPED_REVIEW
+```
+
+### Spring Petclinic
+
+The same repository and branch produced different outcomes depending on the assessment mission.
+
+Technical release readiness:
+
+```text
+READY + PASS
+→ AWAITING_HUMAN_APPROVAL
+```
+
+Deployment readiness:
+
+```text
+UNKNOWN + REVIEW
+→ STOPPED_REVIEW
+```
+
+Custom Maven + Gradle verification:
+
+```text
+READY + PASS
+→ AWAITING_HUMAN_APPROVAL
+```
+
+This demonstrates that the decision depends on the requested mission and its evidence requirements, not simply on the repository or CI status.
+
+---
 
 ## Project structure
 
@@ -194,6 +342,7 @@ contextguard/
 │   ├── config.ts
 │   ├── demo.ts
 │   ├── orchestrator.ts
+│   ├── policies.ts
 │   ├── server.ts
 │   └── types.ts
 ├── .env.example
@@ -202,21 +351,25 @@ contextguard/
 └── tsconfig.json
 ```
 
+---
+
 ## Run locally
 
-Requirements:
+### Requirements
 
 - Node.js 20+
 - a Cominty account
-- a configured Worker agent
-- a configured ContextGuard agent
-- GitHub access configured through the agents
+- a configured Worker Managed Agent
+- a configured ContextGuard Managed Agent
+- GitHub repository access configured through the agents
 
-Install dependencies:
+### Install
 
 ```bash
 npm install
 ```
+
+### Environment
 
 Create the local environment file:
 
@@ -224,7 +377,7 @@ Create the local environment file:
 cp .env.example .env.local
 ```
 
-Configure the following values:
+Configure:
 
 ```env
 COMINTY_API_KEY=your_api_key
@@ -235,48 +388,62 @@ COMINTY_GUARD_AGENT_ID=your_guard_agent_id
 
 Never commit `.env.local`.
 
-Check TypeScript:
+### TypeScript check
 
 ```bash
 npm run check
 ```
 
-Build:
+### Build
 
 ```bash
 npm run build
 ```
 
-Start:
+### Start
 
 ```bash
 npm start
 ```
 
-Then open:
+The application uses `PORT` when provided and otherwise defaults to port `3000`.
+
+Open:
 
 ```text
 http://localhost:3000
 ```
+
+---
 
 ## Tech stack
 
 - TypeScript
 - Node.js
 - Cominty SDK
+- Cominty Managed Agents
 - GitHub integration
 - HTML
 - CSS
 - JavaScript
 
-No frontend framework is required for the demo.
-
-## Current scope
-
-ContextGuard currently demonstrates release-readiness verification, but the architecture is intentionally repository-agnostic.
-
-The same pattern can be applied to other agent workflows where an external action should only happen after independent evidence verification.
+No frontend framework is required.
 
 ---
 
-ContextGuard — **Worker → Independent Verifier → Deterministic Gate → Human Approval**
+## Current scope
+
+ContextGuard currently demonstrates independent evidence verification for software repository decisions.
+
+The architecture is intentionally repository-agnostic and can be extended to other agent workflows where an external action should only proceed after:
+
+```text
+Investigation
+→ Independent verification
+→ Deterministic policy
+→ Human approval
+```
+
+---
+
+**ContextGuard — Worker → Independent Verifier → Deterministic Gate → Human Approval**
