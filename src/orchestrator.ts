@@ -7,12 +7,18 @@ import {
   runWorker
 } from "./agents/worker.js";
 
+import {
+  evaluateTargetIntegrity
+} from "./lib/target-integrity.js";
+
 import type {
   FinalStatus,
   GuardReport,
   Mission,
   OrchestrationResult,
-  WorkerDecision
+  TargetIntegrity,
+  WorkerDecision,
+  WorkerReport
 } from "./types.js";
 
 export const MAX_RETRIES = 2;
@@ -50,7 +56,9 @@ function requestedChecksSignature(
   guardReport: GuardReport
 ): string | null {
   const checks =
-    actionableChecks(guardReport);
+    actionableChecks(
+      guardReport
+    );
 
   if (checks.length === 0) {
     return null;
@@ -71,23 +79,71 @@ function finalStatus(
   workerDecision: WorkerDecision,
   guardReport: GuardReport
 ): FinalStatus {
-  if (guardReport.verdict === "FAIL") {
+  if (
+    guardReport.verdict === "FAIL"
+  ) {
     return "BLOCKED_VERIFICATION";
   }
 
-  if (guardReport.verdict === "REVIEW") {
+  if (
+    guardReport.verdict === "REVIEW"
+  ) {
     return "STOPPED_REVIEW";
   }
 
-  if (workerDecision === "READY") {
+  if (
+    workerDecision === "READY"
+  ) {
     return "AWAITING_HUMAN_APPROVAL";
   }
 
-  if (workerDecision === "NOT_READY") {
+  if (
+    workerDecision === "NOT_READY"
+  ) {
     return "BLOCKED_NOT_READY";
   }
 
   return "STOPPED_UNKNOWN";
+}
+
+function blockedTargetResult(
+  input: Mission,
+  workerReport: WorkerReport,
+  guardReport: GuardReport,
+  targetIntegrity: TargetIntegrity,
+  retryCount: number
+): OrchestrationResult {
+  return {
+    repository:
+      input.repository,
+
+    target:
+      input.target,
+
+    target_integrity:
+      targetIntegrity,
+
+    worker:
+      workerReport,
+
+    guard:
+      guardReport,
+
+    retry_count:
+      retryCount,
+
+    max_retries:
+      MAX_RETRIES,
+
+    status:
+      "BLOCKED_TARGET_INTEGRITY",
+
+    external_action_executed:
+      false,
+
+    human_approval_required:
+      false
+  };
 }
 
 export async function orchestrate(
@@ -110,14 +166,54 @@ export async function orchestrate(
       workerReport
     );
 
+  let targetIntegrity =
+    evaluateTargetIntegrity(
+      input,
+      workerReport.target_resolution,
+      guardReport.target_resolution
+    );
+
+  if (
+    targetIntegrity.status !==
+    "VERIFIED"
+  ) {
+    console.log(
+      `[policy] Target integrity blocked: ${targetIntegrity.status}`
+    );
+
+    return blockedTargetResult(
+      input,
+      workerReport,
+      guardReport,
+      targetIntegrity,
+      retryCount
+    );
+  }
+
+  const lockedSha =
+    targetIntegrity.locked_sha;
+
+  if (!lockedSha) {
+    throw new Error(
+      "Verified target integrity did not produce a locked SHA."
+    );
+  }
+
+  console.log(
+    `[policy] Target snapshot locked: ${lockedSha}`
+  );
+
   while (
     guardReport.verdict === "REVIEW" &&
     retryCount < MAX_RETRIES
   ) {
-    if (!guardReport.retry_recommended) {
+    if (
+      !guardReport.retry_recommended
+    ) {
       console.log(
         "[policy] Guard did not recommend another retry"
       );
+
       break;
     }
 
@@ -130,19 +226,26 @@ export async function orchestrate(
       console.log(
         "[policy] No targeted checks were supplied"
       );
+
       break;
     }
 
     if (
-      attemptedCheckSets.has(signature)
+      attemptedCheckSets.has(
+        signature
+      )
     ) {
       console.log(
         "[policy] Requested checks were already attempted"
       );
+
       break;
     }
 
-    attemptedCheckSets.add(signature);
+    attemptedCheckSets.add(
+      signature
+    );
+
     retryCount++;
 
     console.log(
@@ -152,14 +255,41 @@ export async function orchestrate(
     workerReport =
       await retryWorker(
         initialWorker.threadId,
-        guardReport
+        guardReport,
+        lockedSha
       );
 
     guardReport =
       await runGuard(
         input,
-        workerReport
+        workerReport,
+        lockedSha
       );
+
+    targetIntegrity =
+      evaluateTargetIntegrity(
+        input,
+        workerReport.target_resolution,
+        guardReport.target_resolution,
+        lockedSha
+      );
+
+    if (
+      targetIntegrity.status !==
+      "VERIFIED"
+    ) {
+      console.log(
+        `[policy] Locked target integrity failed: ${targetIntegrity.status}`
+      );
+
+      return blockedTargetResult(
+        input,
+        workerReport,
+        guardReport,
+        targetIntegrity,
+        retryCount
+      );
+    }
   }
 
   const status =
@@ -174,6 +304,9 @@ export async function orchestrate(
 
     target:
       input.target,
+
+    target_integrity:
+      targetIntegrity,
 
     worker:
       workerReport,

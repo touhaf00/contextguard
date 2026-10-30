@@ -1,3 +1,7 @@
+import {
+  validateTargetResolution
+} from "./target-integrity.js";
+
 import type {
   GuardReport,
   GuardVerdict,
@@ -333,11 +337,19 @@ export function validateWorkerReport(
       "WorkerReport"
     );
 
+  const targetResolution =
+    validateTargetResolution(
+      report.target_resolution,
+      "WorkerReport.target_resolution"
+    );
+
   return {
     ...report,
     decision,
     confidence,
-    summary
+    summary,
+    target_resolution:
+      targetResolution
   } as WorkerReport;
 }
 
@@ -401,6 +413,12 @@ export function validateGuardReport(
       "GuardReport"
     );
 
+  const targetResolution =
+    validateTargetResolution(
+      report.target_resolution,
+      "GuardReport.target_resolution"
+    );
+
   validateRequestedChecks(report);
   validateFindings(report);
 
@@ -452,6 +470,8 @@ export function validateGuardReport(
       allowedToAct,
     retry_recommended:
       retryRecommended,
-    summary
+    summary,
+    target_resolution:
+      targetResolution
   } as GuardReport;
 }

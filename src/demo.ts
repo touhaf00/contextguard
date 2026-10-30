@@ -13,6 +13,22 @@ export type DemoScenario =
   | "unknown_pass"
   | "verification_fail";
 
+const demoTargetResolution = {
+  status: "RESOLVED",
+  requested_type: "tag",
+  requested_reference: "v1.1.0",
+  resolved_sha:
+    "b182a69150a65b60217ef9758b1fd771f64e7d1a"
+} as const;
+
+const demoTargetIntegrity = {
+  status: "VERIFIED",
+  worker: demoTargetResolution,
+  guard: demoTargetResolution,
+  locked_sha:
+    "b182a69150a65b60217ef9758b1fd771f64e7d1a"
+} as const;
+
 const baseDemo: OrchestrationResult = {
   repository:
     "touhaf00/tp-cicd",
@@ -22,7 +38,14 @@ const baseDemo: OrchestrationResult = {
     reference: "v1.1.0"
   },
 
+  target_integrity:
+    demoTargetIntegrity,
+
   worker: {
+
+    target_resolution:
+
+      demoTargetResolution,
     decision: "UNKNOWN",
     confidence: 0.55,
 
@@ -31,6 +54,10 @@ const baseDemo: OrchestrationResult = {
   },
 
   guard: {
+
+    target_resolution:
+
+      demoTargetResolution,
     verdict: "REVIEW",
     evidence_coverage: 0.6,
     claim_accuracy: 0.9,
@@ -88,6 +115,10 @@ export function buildDemoResult(
       ...baseDemo,
 
       worker: {
+
+        target_resolution:
+
+          demoTargetResolution,
         decision: "READY",
         confidence: 0.94,
 
@@ -96,6 +127,10 @@ export function buildDemoResult(
       },
 
       guard: {
+
+        target_resolution:
+
+          demoTargetResolution,
         verdict: "PASS",
         evidence_coverage: 0.95,
         claim_accuracy: 0.97,
@@ -124,6 +159,10 @@ export function buildDemoResult(
       ...baseDemo,
 
       worker: {
+
+        target_resolution:
+
+          demoTargetResolution,
         decision: "NOT_READY",
         confidence: 0.95,
 
@@ -132,6 +171,10 @@ export function buildDemoResult(
       },
 
       guard: {
+
+        target_resolution:
+
+          demoTargetResolution,
         verdict: "PASS",
         evidence_coverage: 0.96,
         claim_accuracy: 0.98,
@@ -160,6 +203,10 @@ export function buildDemoResult(
       ...baseDemo,
 
       worker: {
+
+        target_resolution:
+
+          demoTargetResolution,
         decision: "UNKNOWN",
         confidence: 0.8,
 
@@ -168,6 +215,10 @@ export function buildDemoResult(
       },
 
       guard: {
+
+        target_resolution:
+
+          demoTargetResolution,
         verdict: "PASS",
         evidence_coverage: 0.78,
         claim_accuracy: 0.96,
@@ -196,6 +247,10 @@ export function buildDemoResult(
       ...baseDemo,
 
       worker: {
+
+        target_resolution:
+
+          demoTargetResolution,
         decision: "READY",
         confidence: 0.91,
 
@@ -204,6 +259,10 @@ export function buildDemoResult(
       },
 
       guard: {
+
+        target_resolution:
+
+          demoTargetResolution,
         verdict: "FAIL",
         evidence_coverage: 0.9,
         claim_accuracy: 0.45,

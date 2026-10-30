@@ -13,6 +13,15 @@ function validWorker(
     decision: "READY",
     confidence: 0.85,
     summary: "Evidence supports the decision.",
+
+    target_resolution: {
+      status: "RESOLVED",
+      requested_type: "branch",
+      requested_reference: "main",
+      resolved_sha:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+
     ...overrides
   };
 }
@@ -30,6 +39,15 @@ function validGuard(
     allowed_to_act: true,
     retry_recommended: false,
     summary: "Worker claims are sufficiently supported.",
+
+    target_resolution: {
+      status: "RESOLVED",
+      requested_type: "branch",
+      requested_reference: "main",
+      resolved_sha:
+        "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+    },
+
     ...overrides
   };
 }
@@ -271,6 +289,43 @@ test(
           })
         ),
       /between 0 and 1/
+    );
+  }
+);
+
+
+test(
+  "rejects Worker report without target resolution",
+  () => {
+    const report =
+      validWorker();
+
+    delete report.target_resolution;
+
+    assert.throws(
+      () =>
+        validateWorkerReport(
+          report
+        ),
+      /target_resolution/
+    );
+  }
+);
+
+test(
+  "rejects Guard report without target resolution",
+  () => {
+    const report =
+      validGuard();
+
+    delete report.target_resolution;
+
+    assert.throws(
+      () =>
+        validateGuardReport(
+          report
+        ),
+      /target_resolution/
     );
   }
 );

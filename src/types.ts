@@ -8,6 +8,36 @@ export const TARGET_TYPES = [
 
 export type TargetType = (typeof TARGET_TYPES)[number];
 
+export type TargetResolutionStatus =
+  | "RESOLVED"
+  | "UNRESOLVED";
+
+export interface TargetResolution {
+  status: TargetResolutionStatus;
+
+  requested_type: TargetType;
+  requested_reference?: string;
+
+  resolved_sha?: string;
+  reason?: string;
+}
+
+export type TargetIntegrityStatus =
+  | "VERIFIED"
+  | "UNRESOLVED"
+  | "REQUEST_MISMATCH"
+  | "SHA_MISMATCH";
+
+export interface TargetIntegrity {
+  status: TargetIntegrityStatus;
+
+  worker: TargetResolution;
+  guard: TargetResolution;
+
+  locked_sha?: string;
+  reason?: string;
+}
+
 export type WorkerDecision =
   | "READY"
   | "NOT_READY"
@@ -50,6 +80,8 @@ export interface WorkerReport {
   confidence: number;
   summary: string;
 
+  target_resolution: TargetResolution;
+
   [key: string]: unknown;
 }
 
@@ -79,11 +111,14 @@ export interface GuardReport {
   retry_recommended: boolean;
   summary: string;
 
+  target_resolution: TargetResolution;
+
   [key: string]: unknown;
 }
 
 export type FinalStatus =
   | "AWAITING_HUMAN_APPROVAL"
+  | "BLOCKED_TARGET_INTEGRITY"
   | "BLOCKED_NOT_READY"
   | "BLOCKED_VERIFICATION"
   | "STOPPED_UNKNOWN"
@@ -92,6 +127,9 @@ export type FinalStatus =
 export interface OrchestrationResult {
   repository: string;
   target: Mission["target"];
+
+  target_integrity: TargetIntegrity;
+
   worker: WorkerReport;
   guard: GuardReport;
   retry_count: number;

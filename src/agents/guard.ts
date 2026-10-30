@@ -18,8 +18,51 @@ import type {
 
 function buildGuardPrompt(
   input: Mission,
-  workerReport: WorkerReport
+  workerReport: WorkerReport,
+  lockedSha?: string
 ): string {
+  const targetResolutionInstructions =
+    lockedSha
+      ? `
+TARGET SNAPSHOT LOCK:
+
+The application previously established independent consensus and locked
+the target to this immutable commit SHA:
+
+${lockedSha}
+
+Do not replace this snapshot with the current value of a mutable branch,
+tag, release, or other reference.
+
+Independently verify that the evidence being assessed concerns the locked
+SHA.
+
+Return target_resolution using the original requested target identity and
+the locked resolved_sha.
+
+If that binding cannot be verified, return UNRESOLVED rather than moving
+to another SHA.
+`
+      : `
+TARGET RESOLUTION CONTRACT:
+
+Before evaluating the Worker's conclusion, independently resolve the
+original requested target to the exact immutable Git commit it represents.
+
+Do not copy or trust the Worker's target_resolution.
+
+Resolve it independently using repository evidence.
+
+Return a top-level target_resolution field.
+
+When successful, include the full 40-character Git commit SHA.
+
+When exact resolution cannot be verified, return UNRESOLVED with a
+concrete reason.
+
+For current_state, omit requested_reference.
+`;
+
   return `
 Independently verify the following Worker assessment.
 
@@ -39,6 +82,8 @@ Evaluate what the evidence independently supports before comparing it
 with the Worker's decision, confidence, or summary.
 
 Do not treat the Worker's conclusion as authoritative.
+
+${targetResolutionInstructions}
 
 Original mission:
 ${input.mission}
@@ -63,7 +108,8 @@ Return JSON only.
 
 export async function runGuard(
   input: Mission,
-  workerReport: WorkerReport
+  workerReport: WorkerReport,
+  lockedSha?: string
 ): Promise<GuardReport> {
   const {
     client,
@@ -81,7 +127,8 @@ export async function runGuard(
     message:
       buildGuardPrompt(
         input,
-        workerReport
+        workerReport,
+        lockedSha
       )
   });
 

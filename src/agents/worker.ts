@@ -39,6 +39,38 @@ Repository: ${input.repository}
 Target:
 ${JSON.stringify(input.target, null, 2)}
 
+TARGET RESOLUTION CONTRACT:
+
+Before making the business decision, independently resolve the requested
+target to the exact immutable Git commit it represents.
+
+Return a top-level field named target_resolution.
+
+When resolution succeeds:
+
+{
+  "status": "RESOLVED",
+  "requested_type": "<original target type>",
+  "requested_reference": "<original reference when applicable>",
+  "resolved_sha": "<full 40-character Git commit SHA>"
+}
+
+For current_state, omit requested_reference.
+
+When the exact target cannot be verified:
+
+{
+  "status": "UNRESOLVED",
+  "requested_type": "<original target type>",
+  "requested_reference": "<original reference when applicable>",
+  "reason": "<why exact resolution could not be verified>"
+}
+
+Never invent, abbreviate, or infer a commit SHA.
+
+If the target is RESOLVED, all decision-critical execution evidence must
+be evaluated against that exact resolved SHA.
+
 Mission:
 ${input.mission}
 
@@ -53,7 +85,8 @@ Return JSON only.
 }
 
 function buildRetryPrompt(
-  guardReport: GuardReport
+  guardReport: GuardReport,
+  lockedSha: string
 ): string {
   const requested =
     (guardReport.requested_checks ?? [])
@@ -92,6 +125,24 @@ function buildRetryPrompt(
   return `
 This is a targeted evidence-recovery request following an independent
 ContextGuard review.
+
+TARGET SNAPSHOT LOCK:
+
+The application has already independently verified and locked the target
+to this immutable commit SHA:
+
+${lockedSha}
+
+Do not move to a newer commit even if a branch, tag, release, or other
+mutable reference now resolves differently.
+
+All new evidence must concern the locked SHA.
+
+Preserve target_resolution with the original requested target identity
+and the locked resolved_sha.
+
+If evidence cannot be tied to the locked SHA, report that limitation
+instead of silently changing the target.
 
 Do not repeat the complete investigation.
 
@@ -159,7 +210,8 @@ export async function runWorker(
 
 export async function retryWorker(
   threadId: string,
-  guardReport: GuardReport
+  guardReport: GuardReport,
+  lockedSha: string
 ): Promise<WorkerReport> {
   const {
     client,
@@ -175,7 +227,10 @@ export async function retryWorker(
     {
       agentId: workerAgentId,
       message:
-        buildRetryPrompt(guardReport)
+        buildRetryPrompt(
+          guardReport,
+          lockedSha
+        )
     }
   );
 
