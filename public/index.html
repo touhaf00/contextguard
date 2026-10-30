@@ -64,14 +64,17 @@
           Repository
           <input
             id="repository"
-            value="touhaf00/tp-cicd"
+            placeholder="owner/repository"
           >
         </label>
 
         <label>
           Target type
           <select id="targetType">
-            <option value="tag" selected>tag</option>
+            <option value="" selected disabled>
+              Select target type
+            </option>
+            <option value="tag">tag</option>
             <option value="branch">branch</option>
             <option value="commit">commit</option>
             <option value="release">release</option>
@@ -83,7 +86,7 @@
           Target reference
           <input
             id="targetReference"
-            value="v1.1.0"
+            placeholder="e.g. main, v1.2.0 or commit SHA"
           >
         </label>
       </div>

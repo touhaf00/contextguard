@@ -369,6 +369,16 @@ ui.liveButton.addEventListener(
       return;
     }
 
+    if (!targetType) {
+      alert(
+        "Target type is required."
+      );
+
+      ui.targetType.focus();
+
+      return;
+    }
+
     if (
       assessmentType === "custom" &&
       !customInstructions
