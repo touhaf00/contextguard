@@ -530,16 +530,6 @@ footer {
   margin-top: 0;
 }
 
-.secondary-button {
-  border-color: #334055;
-  background: #111823;
-  color: #c6cfdb;
-}
-
-.secondary-button:hover {
-  background: #17202d;
-}
-
 button:disabled {
   cursor: not-allowed;
   opacity: 0.55;

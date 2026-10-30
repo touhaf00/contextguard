@@ -51,7 +51,7 @@
       <div class="panel-heading">
         <div>
           <div class="section-label">ASSESSMENT</div>
-          <h2>Release readiness check</h2>
+          <h2>Repository assessment</h2>
         </div>
 
         <div class="readonly">
@@ -128,37 +128,7 @@
         </label>
       </details>
 
-      <label class="demo-scenario-label">
-        Demo scenario
-
-        <select id="demoScenario">
-          <option value="review" selected>
-            REVIEW after retry
-          </option>
-
-          <option value="ready_pass">
-            READY + PASS
-          </option>
-
-          <option value="not_ready_pass">
-            NOT_READY + PASS
-          </option>
-
-          <option value="unknown_pass">
-            UNKNOWN + PASS
-          </option>
-
-          <option value="verification_fail">
-            Verification FAIL
-          </option>
-        </select>
-      </label>
-
       <div class="button-row">
-        <button id="demoButton" class="secondary-button">
-          Load demo
-        </button>
-
         <button id="liveButton">
           Run live assessment
         </button>
@@ -166,13 +136,9 @@
 
       <div class="warnings">
         <p>
-          <strong>Demo:</strong>
-          uses a saved result and does not call Cominty or GitHub.
-        </p>
-
-        <p>
-          <strong>Live:</strong>
-          runs the Worker and ContextGuard and may consume Cominty credits.
+          <strong>Live assessment:</strong>
+          runs the Worker and ContextGuard in read-only mode and may consume
+          Cominty credits. No repository write is performed automatically.
         </p>
       </div>
     </section>

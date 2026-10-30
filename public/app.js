@@ -2,9 +2,7 @@ const byId = (id) =>
   document.getElementById(id);
 
 const ui = {
-  demoButton: byId("demoButton"),
   liveButton: byId("liveButton"),
-  demoScenario: byId("demoScenario"),
 
   repository: byId("repository"),
   targetType: byId("targetType"),
@@ -345,41 +343,6 @@ async function requestJson(
   return data;
 }
 
-ui.demoButton.addEventListener(
-  "click",
-  async () => {
-    ui.demoButton.disabled = true;
-
-    ui.demoButton.textContent =
-      "Loading demo...";
-
-    try {
-      const scenario =
-        ui.demoScenario.value;
-
-      const data =
-        await requestJson(
-          `/api/demo?scenario=${encodeURIComponent(
-            scenario
-          )}`
-        );
-
-      renderResult(data);
-    } catch (error) {
-      alert(
-        error instanceof Error
-          ? error.message
-          : "Unable to load demo."
-      );
-    } finally {
-      ui.demoButton.disabled = false;
-
-      ui.demoButton.textContent =
-        "Load demo";
-    }
-  }
-);
-
 ui.liveButton.addEventListener(
   "click",
   async () => {
@@ -442,7 +405,6 @@ ui.liveButton.addEventListener(
       return;
     }
 
-    ui.demoButton.disabled = true;
     ui.liveButton.disabled = true;
 
     ui.liveButton.textContent =
@@ -492,7 +454,6 @@ ui.liveButton.addEventListener(
           : "Live assessment failed."
       );
     } finally {
-      ui.demoButton.disabled = false;
       ui.liveButton.disabled = false;
 
       ui.liveButton.textContent =
