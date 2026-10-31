@@ -7,15 +7,19 @@ import {
 import type {
   ActionIntent,
   ActionLock,
-  OrchestrationResult
+  OrchestrationResult,
+  PreExecutionCheck
 } from "../types.js";
 
 export type ApprovalStoreErrorCode =
   | "NOT_FOUND"
   | "EXPIRED"
   | "ALREADY_APPROVED"
+  | "NOT_APPROVED"
   | "FINGERPRINT_MISMATCH"
   | "INTEGRITY_FAILED"
+  | "INVALID_TARGET_SHA"
+  | "TARGET_CHANGED"
   | "CAPACITY_REACHED";
 
 export class ApprovalStoreError
@@ -68,6 +72,9 @@ function clone<T>(
     JSON.stringify(value)
   ) as T;
 }
+
+const FULL_GIT_SHA =
+  /^[0-9a-f]{40}$/i;
 
 export class ApprovalStore {
   private readonly records =
@@ -293,5 +300,153 @@ export class ApprovalStore {
     return this.view(
       record
     );
+  }
+
+  preflight(
+    approvalId: string,
+    fingerprint: string,
+    observedTargetSha: string
+  ): PreExecutionCheck {
+    const record =
+      this.records.get(
+        approvalId
+      );
+
+    if (!record) {
+      throw new ApprovalStoreError(
+        "NOT_FOUND",
+        "Approval was not found."
+      );
+    }
+
+    const now =
+      this.now();
+
+    if (
+      record.expires_at_ms <=
+      now
+    ) {
+      this.records.delete(
+        approvalId
+      );
+
+      throw new ApprovalStoreError(
+        "EXPIRED",
+        "Approval has expired."
+      );
+    }
+
+    if (
+      record.lock.status !==
+      "APPROVED"
+    ) {
+      throw new ApprovalStoreError(
+        "NOT_APPROVED",
+        "Action has not received human approval."
+      );
+    }
+
+    if (
+      fingerprint !==
+      record.lock.fingerprint
+    ) {
+      throw new ApprovalStoreError(
+        "FINGERPRINT_MISMATCH",
+        "Pre-execution fingerprint does not match the approved ActionLock."
+      );
+    }
+
+    if (
+      !verifyActionLock(
+        record.lock
+      )
+    ) {
+      throw new ApprovalStoreError(
+        "INTEGRITY_FAILED",
+        "Approved ActionLock failed fingerprint verification."
+      );
+    }
+
+    if (
+      !actionLockMatchesResult(
+        record.lock,
+        record.assessment
+      )
+    ) {
+      throw new ApprovalStoreError(
+        "INTEGRITY_FAILED",
+        "Approved assessment no longer matches the ActionLock."
+      );
+    }
+
+    const observedSha =
+      observedTargetSha
+        .trim()
+        .toLowerCase();
+
+    if (
+      !FULL_GIT_SHA.test(
+        observedSha
+      )
+    ) {
+      throw new ApprovalStoreError(
+        "INVALID_TARGET_SHA",
+        "Observed pre-execution target must be a full 40-character Git SHA."
+      );
+    }
+
+    const lockedSha =
+      record.lock.intent
+        .locked_sha
+        .toLowerCase();
+
+    if (
+      observedSha !==
+      lockedSha
+    ) {
+      throw new ApprovalStoreError(
+        "TARGET_CHANGED",
+        "Target changed after human approval. Execution is blocked."
+      );
+    }
+
+    return {
+      approval_id:
+        record.lock.approval_id,
+
+      fingerprint:
+        record.lock.fingerprint,
+
+      status:
+        "PRE_EXECUTION_VERIFIED",
+
+      approval_status:
+        "APPROVED",
+
+      locked_sha:
+        lockedSha,
+
+      observed_sha:
+        observedSha,
+
+      action_integrity_verified:
+        true,
+
+      target_integrity_verified:
+        true,
+
+      execution_permitted_by_policy:
+        true,
+
+      execution_configured:
+        false,
+
+      external_action_executed:
+        false,
+
+      checked_at:
+        new Date(now)
+          .toISOString()
+    };
   }
 }

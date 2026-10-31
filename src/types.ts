@@ -264,6 +264,38 @@ export interface ActionLock {
   approved_at?: string;
 }
 
+export interface PreExecutionCheck {
+  approval_id: string;
+
+  fingerprint: string;
+
+  status:
+    "PRE_EXECUTION_VERIFIED";
+
+  approval_status:
+    "APPROVED";
+
+  locked_sha: string;
+  observed_sha: string;
+
+  action_integrity_verified:
+    true;
+
+  target_integrity_verified:
+    true;
+
+  execution_permitted_by_policy:
+    true;
+
+  execution_configured:
+    false;
+
+  external_action_executed:
+    false;
+
+  checked_at: string;
+}
+
 export interface OrchestrationResult {
   repository: string;
   target: Mission["target"];

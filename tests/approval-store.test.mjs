@@ -240,3 +240,239 @@ test(
     );
   }
 );
+
+test(
+  "preflight verifies an approved action against the exact locked target",
+  () => {
+    let now =
+      1_000;
+
+    const store =
+      new ApprovalStore(
+        60_000,
+        10,
+        () => now
+      );
+
+    const pending =
+      store.create(
+        ready()
+      );
+
+    now =
+      2_000;
+
+    const approved =
+      store.approve(
+        pending.approval_id,
+        pending.fingerprint
+      );
+
+    now =
+      3_000;
+
+    const check =
+      store.preflight(
+        approved.approval_id,
+        approved.fingerprint,
+        approved.intent.locked_sha
+      );
+
+    assert.equal(
+      check.status,
+      "PRE_EXECUTION_VERIFIED"
+    );
+
+    assert.equal(
+      check.approval_status,
+      "APPROVED"
+    );
+
+    assert.equal(
+      check.target_integrity_verified,
+      true
+    );
+
+    assert.equal(
+      check.action_integrity_verified,
+      true
+    );
+
+    assert.equal(
+      check.external_action_executed,
+      false
+    );
+  }
+);
+
+test(
+  "preflight rejects an action that has not been approved",
+  () => {
+    const store =
+      new ApprovalStore();
+
+    const pending =
+      store.create(
+        ready()
+      );
+
+    assert.throws(
+      () =>
+        store.preflight(
+          pending.approval_id,
+          pending.fingerprint,
+          pending.intent.locked_sha
+        ),
+      (error) =>
+        error instanceof
+          ApprovalStoreError &&
+        error.code ===
+          "NOT_APPROVED"
+    );
+  }
+);
+
+test(
+  "preflight blocks target drift after approval",
+  () => {
+    const store =
+      new ApprovalStore();
+
+    const pending =
+      store.create(
+        ready()
+      );
+
+    const approved =
+      store.approve(
+        pending.approval_id,
+        pending.fingerprint
+      );
+
+    assert.throws(
+      () =>
+        store.preflight(
+          approved.approval_id,
+          approved.fingerprint,
+          "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
+        ),
+      (error) =>
+        error instanceof
+          ApprovalStoreError &&
+        error.code ===
+          "TARGET_CHANGED"
+    );
+  }
+);
+
+test(
+  "preflight rejects malformed observed target SHA",
+  () => {
+    const store =
+      new ApprovalStore();
+
+    const pending =
+      store.create(
+        ready()
+      );
+
+    const approved =
+      store.approve(
+        pending.approval_id,
+        pending.fingerprint
+      );
+
+    assert.throws(
+      () =>
+        store.preflight(
+          approved.approval_id,
+          approved.fingerprint,
+          "abc123"
+        ),
+      (error) =>
+        error instanceof
+          ApprovalStoreError &&
+        error.code ===
+          "INVALID_TARGET_SHA"
+    );
+  }
+);
+
+test(
+  "preflight rejects a fingerprint different from the approved lock",
+  () => {
+    const store =
+      new ApprovalStore();
+
+    const pending =
+      store.create(
+        ready()
+      );
+
+    const approved =
+      store.approve(
+        pending.approval_id,
+        pending.fingerprint
+      );
+
+    assert.throws(
+      () =>
+        store.preflight(
+          approved.approval_id,
+          "f".repeat(64),
+          approved.intent.locked_sha
+        ),
+      (error) =>
+        error instanceof
+          ApprovalStoreError &&
+        error.code ===
+          "FINGERPRINT_MISMATCH"
+    );
+  }
+);
+
+test(
+  "preflight rejects an approved lock after its expiry",
+  () => {
+    let now =
+      1_000;
+
+    const store =
+      new ApprovalStore(
+        100,
+        10,
+        () => now
+      );
+
+    const pending =
+      store.create(
+        ready()
+      );
+
+    now =
+      1_050;
+
+    const approved =
+      store.approve(
+        pending.approval_id,
+        pending.fingerprint
+      );
+
+    now =
+      1_101;
+
+    assert.throws(
+      () =>
+        store.preflight(
+          approved.approval_id,
+          approved.fingerprint,
+          approved.intent.locked_sha
+        ),
+      (error) =>
+        error instanceof
+          ApprovalStoreError &&
+        error.code ===
+          "EXPIRED"
+    );
+  }
+);
