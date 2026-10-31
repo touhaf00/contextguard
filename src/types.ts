@@ -264,6 +264,39 @@ export interface ActionLock {
   approved_at?: string;
 }
 
+export const AUDIT_EVENT_TYPES = [
+  "ASSESSMENT_COMPLETED",
+  "ACTION_LOCK_CREATED",
+  "APPROVAL_GRANTED",
+  "APPROVAL_REJECTED",
+  "PREFLIGHT_VERIFIED",
+  "PREFLIGHT_BLOCKED"
+] as const;
+
+export type AuditEventType =
+  (typeof AUDIT_EVENT_TYPES)[number];
+
+export interface AuditEvent {
+  sequence: number;
+
+  event_id: string;
+  event_type: AuditEventType;
+
+  subject_id: string;
+
+  timestamp: string;
+
+  previous_hash:
+    string | null;
+
+  payload:
+    Record<string, unknown>;
+
+  payload_hash: string;
+
+  event_hash: string;
+}
+
 export interface PreExecutionCheck {
   approval_id: string;
 
