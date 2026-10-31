@@ -3,6 +3,10 @@ import {
 } from "./target-integrity.js";
 
 import {
+  validateWorkerEvidenceProtocol
+} from "./evidence-protocol.js";
+
+import {
   FINDING_TYPES
 } from "../types.js";
 
@@ -572,13 +576,22 @@ export function validateWorkerReport(
       "WorkerReport.target_resolution"
     );
 
+  const evidenceProtocol =
+    validateWorkerEvidenceProtocol(
+      report,
+      targetResolution,
+      decision
+    );
+
   return {
     ...report,
     decision,
     confidence,
     summary,
     target_resolution:
-      targetResolution
+      targetResolution,
+
+    ...evidenceProtocol
   } as WorkerReport;
 }
 

@@ -72,6 +72,83 @@ export type FindingSeverity =
   | "HIGH"
   | "CRITICAL";
 
+export const EVIDENCE_LEVELS = [
+  "CONFIGURED",
+  "EXECUTED",
+  "SUCCESS",
+  "OUTPUT_OBSERVED",
+  "SEMANTIC_EFFECT"
+] as const;
+
+export type EvidenceLevel =
+  (typeof EVIDENCE_LEVELS)[number];
+
+export const EVIDENCE_SOURCE_TYPES = [
+  "FILE",
+  "DIRECTORY",
+  "COMMIT",
+  "BRANCH",
+  "TAG",
+  "RELEASE",
+  "WORKFLOW",
+  "WORKFLOW_RUN",
+  "JOB",
+  "STEP",
+  "LOG",
+  "CHECK",
+  "PULL_REQUEST",
+  "ISSUE",
+  "CONFIGURATION",
+  "OTHER"
+] as const;
+
+export type EvidenceSourceType =
+  (typeof EVIDENCE_SOURCE_TYPES)[number];
+
+export const CLAIM_CRITICALITIES = [
+  "REQUIRED",
+  "SUPPORTING"
+] as const;
+
+export type ClaimCriticality =
+  (typeof CLAIM_CRITICALITIES)[number];
+
+export const CLAIM_STATUSES = [
+  "SUPPORTED",
+  "UNSUPPORTED",
+  "CONTRADICTED",
+  "UNKNOWN"
+] as const;
+
+export type ClaimStatus =
+  (typeof CLAIM_STATUSES)[number];
+
+export interface EvidenceRecord {
+  evidence_id: string;
+  source_type: EvidenceSourceType;
+
+  repository: string;
+  target_sha: string;
+
+  locator: string;
+  observation: string;
+
+  level: EvidenceLevel;
+
+  content_hash?: string;
+  observed_at?: string;
+}
+
+export interface WorkerClaim {
+  claim_id: string;
+  statement: string;
+
+  criticality: ClaimCriticality;
+  status: ClaimStatus;
+
+  evidence_refs: string[];
+}
+
 export interface Mission {
   repository: string;
 
@@ -93,6 +170,9 @@ export interface WorkerReport {
   summary: string;
 
   target_resolution: TargetResolution;
+
+  claims?: WorkerClaim[];
+  evidence?: EvidenceRecord[];
 
   [key: string]: unknown;
 }
