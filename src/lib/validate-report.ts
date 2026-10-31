@@ -741,6 +741,15 @@ export function validateGuardReport(
   }
 
   if (
+    verdict === "PASS" &&
+    !allowedToAct
+  ) {
+    throw new Error(
+      "Guard invariant violated: PASS requires allowed_to_act=true."
+    );
+  }
+
+  if (
     verdict !== "PASS" &&
     allowedToAct
   ) {

@@ -41,8 +41,14 @@ const ui = {
 
   approvalSection: byId("approvalSection"),
   approveButton: byId("approveButton"),
-  approvalResult: byId("approvalResult")
+  approvalResult: byId("approvalResult"),
+
+  approvalAction: byId("approvalAction"),
+  approvalLockedSha: byId("approvalLockedSha"),
+  approvalFingerprint: byId("approvalFingerprint")
 };
+
+let currentApproval = null;
 
 const statusLabels = {
   STOPPED_REVIEW:
@@ -231,19 +237,66 @@ function renderRetry(data) {
 }
 
 function renderApproval(data) {
-  ui.approveButton.disabled = false;
+  currentApproval =
+    data.approval ?? null;
+
+  ui.approveButton.disabled =
+    false;
 
   ui.approveButton.textContent =
-    "Approve next stage";
+    "Approve locked action";
+
+  ui.approvalResult.textContent =
+    "";
 
   ui.approvalResult.classList.add(
     "hidden"
   );
 
+  ui.approvalAction.textContent =
+    currentApproval
+      ?.intent
+      ?.action_type ?? "—";
+
+  ui.approvalLockedSha.textContent =
+    currentApproval
+      ?.intent
+      ?.locked_sha ?? "—";
+
+  ui.approvalFingerprint.textContent =
+    currentApproval
+      ?.fingerprint ?? "—";
+
+  if (
+    data.human_approval_required &&
+    currentApproval &&
+    currentApproval.status ===
+      "PENDING"
+  ) {
+    ui.approvalSection.classList.remove(
+      "hidden"
+    );
+
+    return;
+  }
+
   if (
     data.human_approval_required
   ) {
     ui.approvalSection.classList.remove(
+      "hidden"
+    );
+
+    ui.approveButton.disabled =
+      true;
+
+    ui.approveButton.textContent =
+      "Approval unavailable";
+
+    ui.approvalResult.textContent =
+      "The server did not provide a valid pending ActionLock. No action can proceed.";
+
+    ui.approvalResult.classList.remove(
       "hidden"
     );
 
@@ -545,14 +598,89 @@ ui.targetType.addEventListener(
 
 ui.approveButton.addEventListener(
   "click",
-  () => {
-    ui.approveButton.disabled = true;
+  async () => {
+    if (
+      !currentApproval ||
+      currentApproval.status !==
+        "PENDING"
+    ) {
+      return;
+    }
+
+    const confirmed =
+      confirm(
+        "Approve this exact locked action?\n\n" +
+        `Target: ${currentApproval.intent.locked_sha}\n` +
+        `Fingerprint: ${currentApproval.fingerprint}\n\n` +
+        "This records human approval only. No external action will be executed."
+      );
+
+    if (!confirmed) {
+      return;
+    }
+
+    ui.approveButton.disabled =
+      true;
 
     ui.approveButton.textContent =
-      "Approved";
+      "Recording approval...";
 
-    ui.approvalResult.classList.remove(
-      "hidden"
-    );
+    try {
+      const data =
+        await requestJson(
+          "/api/approve",
+          {
+            method:
+              "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json"
+            },
+
+            body:
+              JSON.stringify({
+                approval_id:
+                  currentApproval
+                    .approval_id,
+
+                fingerprint:
+                  currentApproval
+                    .fingerprint
+              })
+          }
+        );
+
+      currentApproval =
+        data.approval;
+
+      ui.approveButton.textContent =
+        "Approved & locked";
+
+      ui.humanApproval.textContent =
+        "Approved & locked";
+
+      ui.approvalResult.textContent =
+        "✓ Human approval recorded by the server for this exact fingerprint. Execution is not configured and no external action was performed.";
+
+      ui.approvalResult.classList.remove(
+        "hidden"
+      );
+    } catch (error) {
+      ui.approveButton.disabled =
+        false;
+
+      ui.approveButton.textContent =
+        "Approve locked action";
+
+      ui.approvalResult.textContent =
+        error instanceof Error
+          ? error.message
+          : "Approval failed.";
+
+      ui.approvalResult.classList.remove(
+        "hidden"
+      );
+    }
   }
 );

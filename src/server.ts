@@ -24,6 +24,11 @@ import {
 } from "./orchestrator.js";
 
 import {
+  ApprovalStore,
+  ApprovalStoreError
+} from "./lib/approval-store.js";
+
+import {
   ASSESSMENT_TYPES,
   buildAssessmentMission,
   type AssessmentType
@@ -42,6 +47,9 @@ const PUBLIC_DIR =
 
 const MAX_BODY_SIZE =
   1_000_000;
+
+const approvalStore =
+  new ApprovalStore();
 
 const mimeTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -263,6 +271,100 @@ function validateMission(
   };
 }
 
+function validateApprovalRequest(
+  value: unknown
+): {
+  approval_id: string;
+  fingerprint: string;
+} {
+  if (
+    !value ||
+    typeof value !== "object" ||
+    Array.isArray(value)
+  ) {
+    throw new HttpError(
+      400,
+      "Invalid approval request."
+    );
+  }
+
+  const input =
+    value as
+      Record<string, unknown>;
+
+  if (
+    typeof input.approval_id !==
+      "string" ||
+    !input.approval_id.trim()
+  ) {
+    throw new HttpError(
+      400,
+      "approval_id is required."
+    );
+  }
+
+  if (
+    typeof input.fingerprint !==
+      "string" ||
+    !/^[0-9a-f]{64}$/i.test(
+      input.fingerprint
+    )
+  ) {
+    throw new HttpError(
+      400,
+      "fingerprint must be a SHA-256 hex digest."
+    );
+  }
+
+  return {
+    approval_id:
+      input.approval_id.trim(),
+
+    fingerprint:
+      input.fingerprint
+        .toLowerCase()
+  };
+}
+
+function approvalHttpError(
+  error: ApprovalStoreError
+): HttpError {
+  if (
+    error.code ===
+      "NOT_FOUND"
+  ) {
+    return new HttpError(
+      404,
+      error.message
+    );
+  }
+
+  if (
+    error.code ===
+      "EXPIRED"
+  ) {
+    return new HttpError(
+      410,
+      error.message
+    );
+  }
+
+  if (
+    error.code ===
+      "CAPACITY_REACHED"
+  ) {
+    return new HttpError(
+      503,
+      error.message
+    );
+  }
+
+  return new HttpError(
+    409,
+    error.message
+  );
+}
+
 async function serveStatic(
   req: IncomingMessage,
   res: ServerResponse<IncomingMessage>
@@ -377,13 +479,83 @@ const server = createServer(
           `[live] Final status: ${result.status}`
         );
 
+        const approval =
+          result.human_approval_required
+            ? approvalStore.create(
+                result
+              )
+            : undefined;
+
         sendJson(
           res,
           200,
-          result
+          {
+            ...result,
+
+            ...(approval
+              ? {
+                  approval
+                }
+              : {})
+          }
         );
 
         return;
+      }
+
+      if (
+        req.method === "POST" &&
+        url.pathname ===
+          "/api/approve"
+      ) {
+        const approvalRequest =
+          validateApprovalRequest(
+            await readJsonBody(req)
+          );
+
+        try {
+          const approval =
+            approvalStore.approve(
+              approvalRequest
+                .approval_id,
+              approvalRequest
+                .fingerprint
+            );
+
+          console.log(
+            `[approval] Approved ${approval.approval_id} fingerprint=${approval.fingerprint}`
+          );
+
+          sendJson(
+            res,
+            200,
+            {
+              approval,
+
+              status:
+                "APPROVED_LOCKED",
+
+              external_action_executed:
+                false,
+
+              execution_configured:
+                false
+            }
+          );
+
+          return;
+        } catch (error) {
+          if (
+            error instanceof
+              ApprovalStoreError
+          ) {
+            throw approvalHttpError(
+              error
+            );
+          }
+
+          throw error;
+        }
       }
 
       if (

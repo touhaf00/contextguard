@@ -767,3 +767,18 @@ test(
     );
   }
 );
+
+test(
+  "rejects PASS that does not allow action",
+  () => {
+    assert.throws(
+      () =>
+        validateGuardReport(
+          validGuard({
+            allowed_to_act: false
+          })
+        ),
+      /PASS requires allowed_to_act=true/
+    );
+  }
+);
