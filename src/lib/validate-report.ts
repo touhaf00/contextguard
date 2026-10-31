@@ -2,6 +2,10 @@ import {
   validateTargetResolution
 } from "./target-integrity.js";
 
+import {
+  FINDING_TYPES
+} from "../types.js";
+
 import type {
   GuardReport,
   GuardVerdict,
@@ -185,15 +189,34 @@ function validateFindings(
         label
       );
 
-    stringField(
-      finding,
-      "id",
-      label
-    );
+    const findingId =
+      stringField(
+        finding,
+        "id",
+        label
+      );
 
-    stringField(
+    const duplicateIds =
+      value
+        .slice(0, index)
+        .some((previous) =>
+          typeof previous === "object" &&
+          previous !== null &&
+          (
+            previous as Record<string, unknown>
+          ).id === findingId
+        );
+
+    if (duplicateIds) {
+      throw new Error(
+        `GuardReport.findings contains duplicate id: ${findingId}.`
+      );
+    }
+
+    enumField(
       finding,
       "type",
+      FINDING_TYPES,
       label
     );
 
@@ -254,6 +277,212 @@ function validateFindings(
       );
     }
   });
+}
+
+function validateFindingRelationships(
+  report: Record<string, unknown>,
+  verdict: GuardVerdict,
+  retryRecommended: boolean
+): void {
+  const findings =
+    Array.isArray(report.findings)
+      ? report.findings
+      : [];
+
+  const requestedChecks =
+    Array.isArray(report.requested_checks)
+      ? report.requested_checks
+      : [];
+
+  const findingIds =
+    new Set(
+      findings.map((rawFinding) =>
+        (
+          rawFinding as Record<string, unknown>
+        ).id as string
+      )
+    );
+
+  for (
+    let index = 0;
+    index < requestedChecks.length;
+    index++
+  ) {
+    const check =
+      requestedChecks[index] as
+        Record<string, unknown>;
+
+    const findingId =
+      check.finding_id as string;
+
+    if (
+      !findingIds.has(
+        findingId
+      )
+    ) {
+      throw new Error(
+        `GuardReport.requested_checks[${index}].finding_id does not reference an existing finding.`
+      );
+    }
+  }
+
+  /*
+   * PASS means the assessment is sufficiently
+   * trustworthy. Non-blocking observations belong
+   * in summary, not in findings.
+   */
+  if (
+    verdict === "PASS" &&
+    findings.length > 0
+  ) {
+    throw new Error(
+      "Guard invariant violated: PASS must not contain findings."
+    );
+  }
+
+  if (
+    verdict === "REVIEW" &&
+    findings.length === 0
+  ) {
+    throw new Error(
+      "Guard invariant violated: REVIEW requires at least one finding."
+    );
+  }
+
+  if (
+    verdict === "REVIEW" &&
+    findings.some((rawFinding) =>
+      (
+        rawFinding as Record<string, unknown>
+      ).severity === "LOW"
+    )
+  ) {
+    throw new Error(
+      "Guard invariant violated: REVIEW cannot contain LOW findings; non-decision-critical observations belong in summary."
+    );
+  }
+
+  const hasCorrectableAssessmentFinding =
+    findings.some((rawFinding) => {
+      const type =
+        (
+          rawFinding as Record<string, unknown>
+        ).type;
+
+      return (
+        type === "REASONING_ERROR" ||
+        type === "UNSUPPORTED_CLAIM"
+      );
+    });
+
+  if (
+    verdict === "REVIEW" &&
+    hasCorrectableAssessmentFinding &&
+    !retryRecommended
+  ) {
+    throw new Error(
+      "Guard invariant violated: a REVIEW caused by a correctable Worker assessment problem requires a retry."
+    );
+  }
+
+  if (
+    verdict === "FAIL" &&
+    findings.length === 0
+  ) {
+    throw new Error(
+      "Guard invariant violated: FAIL requires at least one finding."
+    );
+  }
+
+  if (
+    !retryRecommended &&
+    requestedChecks.length > 0
+  ) {
+    throw new Error(
+      "Guard invariant violated: requested_checks must be empty when retry_recommended is false."
+    );
+  }
+
+  const requestedFindingIds =
+    new Set(
+      requestedChecks.map((rawCheck) =>
+        (
+          rawCheck as Record<string, unknown>
+        ).finding_id as string
+      )
+    );
+
+  for (const rawFinding of findings) {
+    const finding =
+      rawFinding as
+        Record<string, unknown>;
+
+    const findingId =
+      finding.id as string;
+
+    const requiredCheck =
+      finding.required_check;
+
+    if (
+      !retryRecommended &&
+      typeof requiredCheck === "string" &&
+      requiredCheck.trim()
+    ) {
+      throw new Error(
+        `Guard invariant violated: finding ${findingId} cannot require another check when retry_recommended is false.`
+      );
+    }
+
+    if (
+      retryRecommended &&
+      typeof requiredCheck === "string" &&
+      requiredCheck.trim() &&
+      !requestedFindingIds.has(
+        findingId
+      )
+    ) {
+      throw new Error(
+        `Guard invariant violated: finding ${findingId} has a required_check but no matching requested_check.`
+      );
+    }
+  }
+
+  if (verdict === "FAIL") {
+    const failCapableTypes =
+      new Set([
+        "CONTRADICTION",
+        "FABRICATED_EVIDENCE",
+        "REASONING_ERROR",
+        "TARGET_MISMATCH"
+      ]);
+
+    const hasMaterialFailure =
+      findings.some((rawFinding) => {
+        const finding =
+          rawFinding as
+            Record<string, unknown>;
+
+        return (
+          failCapableTypes.has(
+            String(
+              finding.type
+            )
+          ) &&
+          (
+            finding.severity ===
+              "HIGH" ||
+            finding.severity ===
+              "CRITICAL"
+          )
+        );
+      });
+
+    if (!hasMaterialFailure) {
+      throw new Error(
+        "Guard invariant violated: FAIL requires a HIGH or CRITICAL integrity finding."
+      );
+    }
+  }
 }
 
 function hasRetryCheck(
@@ -392,6 +621,13 @@ export function validateGuardReport(
       "GuardReport"
     );
 
+  const workerDecisionSupported =
+    booleanField(
+      report,
+      "worker_decision_supported",
+      "GuardReport"
+    );
+
   const allowedToAct =
     booleanField(
       report,
@@ -431,6 +667,24 @@ export function validateGuardReport(
    */
 
   if (
+    verdict === "PASS" &&
+    !workerDecisionSupported
+  ) {
+    throw new Error(
+      "Guard invariant violated: PASS requires worker_decision_supported=true."
+    );
+  }
+
+  if (
+    verdict !== "PASS" &&
+    workerDecisionSupported
+  ) {
+    throw new Error(
+      "Guard invariant violated: REVIEW or FAIL requires worker_decision_supported=false."
+    );
+  }
+
+  if (
     verdict !== "PASS" &&
     allowedToAct
   ) {
@@ -458,6 +712,12 @@ export function validateGuardReport(
     );
   }
 
+  validateFindingRelationships(
+    report,
+    verdict,
+    retryRecommended
+  );
+
   return {
     ...report,
     verdict,
@@ -466,6 +726,8 @@ export function validateGuardReport(
     claim_accuracy:
       claimAccuracy,
     risk,
+    worker_decision_supported:
+      workerDecisionSupported,
     allowed_to_act:
       allowedToAct,
     retry_recommended:

@@ -59,6 +59,7 @@ const baseDemo: OrchestrationResult = {
 
       demoTargetResolution,
     verdict: "REVIEW",
+      worker_decision_supported: false,
     evidence_coverage: 0.6,
     claim_accuracy: 0.9,
     risk: "MEDIUM",
@@ -68,7 +69,7 @@ const baseDemo: OrchestrationResult = {
     findings: [
       {
         id: "F1",
-        type: "SEMANTIC_MISMATCH",
+        type: "REASONING_ERROR",
         severity: "HIGH",
         claim_id: null,
 
@@ -132,6 +133,7 @@ export function buildDemoResult(
 
           demoTargetResolution,
         verdict: "PASS",
+      worker_decision_supported: true,
         evidence_coverage: 0.95,
         claim_accuracy: 0.97,
         risk: "LOW",
@@ -176,6 +178,7 @@ export function buildDemoResult(
 
           demoTargetResolution,
         verdict: "PASS",
+      worker_decision_supported: true,
         evidence_coverage: 0.96,
         claim_accuracy: 0.98,
         risk: "LOW",
@@ -220,6 +223,7 @@ export function buildDemoResult(
 
           demoTargetResolution,
         verdict: "PASS",
+      worker_decision_supported: true,
         evidence_coverage: 0.78,
         claim_accuracy: 0.96,
         risk: "MEDIUM",
@@ -264,6 +268,7 @@ export function buildDemoResult(
 
           demoTargetResolution,
         verdict: "FAIL",
+      worker_decision_supported: false,
         evidence_coverage: 0.9,
         claim_accuracy: 0.45,
         risk: "HIGH",

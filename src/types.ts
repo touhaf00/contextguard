@@ -54,6 +54,18 @@ export type RiskLevel =
   | "HIGH"
   | "CRITICAL";
 
+export const FINDING_TYPES = [
+  "MISSING_EVIDENCE",
+  "UNSUPPORTED_CLAIM",
+  "CONTRADICTION",
+  "FABRICATED_EVIDENCE",
+  "REASONING_ERROR",
+  "TARGET_MISMATCH"
+] as const;
+
+export type FindingType =
+  (typeof FINDING_TYPES)[number];
+
 export type FindingSeverity =
   | "LOW"
   | "MEDIUM"
@@ -92,7 +104,7 @@ export interface RequestedCheck {
 
 export interface GuardFinding {
   id: string;
-  type: string;
+  type: FindingType;
   severity: FindingSeverity;
   claim_id?: string | null;
   description: string;
@@ -107,6 +119,7 @@ export interface GuardReport {
   risk: RiskLevel;
   findings?: GuardFinding[];
   requested_checks?: RequestedCheck[];
+  worker_decision_supported: boolean;
   allowed_to_act: boolean;
   retry_recommended: boolean;
   summary: string;
