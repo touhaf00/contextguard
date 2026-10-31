@@ -24,9 +24,12 @@ import {
 } from "./orchestrator.js";
 
 import {
-  ApprovalStore,
   ApprovalStoreError
 } from "./lib/approval-store.js";
+
+import {
+  AuditCoordinator
+} from "./lib/audit-coordinator.js";
 
 import {
   ASSESSMENT_TYPES,
@@ -48,8 +51,8 @@ const PUBLIC_DIR =
 const MAX_BODY_SIZE =
   1_000_000;
 
-const approvalStore =
-  new ApprovalStore();
+const auditCoordinator =
+  new AuditCoordinator();
 
 const mimeTypes: Record<string, string> = {
   ".html": "text/html; charset=utf-8",
@@ -479,12 +482,11 @@ const server = createServer(
           `[live] Final status: ${result.status}`
         );
 
-        const approval =
-          result.human_approval_required
-            ? approvalStore.create(
-                result
-              )
-            : undefined;
+        const auditResult =
+          auditCoordinator
+            .completeAssessment(
+              result
+            );
 
         sendJson(
           res,
@@ -492,11 +494,21 @@ const server = createServer(
           {
             ...result,
 
-            ...(approval
+            assessment_id:
+              auditResult
+                .assessment_id,
+
+            ...(auditResult.approval
               ? {
-                  approval
+                  approval:
+                    auditResult
+                      .approval
                 }
-              : {})
+              : {}),
+
+            audit_checkpoint:
+              auditResult
+                .audit_checkpoint
           }
         );
 
@@ -515,7 +527,7 @@ const server = createServer(
 
         try {
           const approval =
-            approvalStore.approve(
+            auditCoordinator.approve(
               approvalRequest
                 .approval_id,
               approvalRequest
@@ -539,7 +551,11 @@ const server = createServer(
                 false,
 
               execution_configured:
-                false
+                false,
+
+              audit_checkpoint:
+                auditCoordinator
+                  .checkpoint()
             }
           );
 

@@ -297,6 +297,13 @@ export interface AuditEvent {
   event_hash: string;
 }
 
+export interface AuditCheckpoint {
+  event_count: number;
+
+  head_hash:
+    string | null;
+}
+
 export interface PreExecutionCheck {
   approval_id: string;
 

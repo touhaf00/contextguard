@@ -176,3 +176,60 @@ test(
     );
   }
 );
+
+test(
+  "verifies an audit chain against a known checkpoint",
+  async () => {
+    const {
+      verifyAuditCheckpoint
+    } =
+      await import(
+        "../dist/lib/audit-trail.js"
+      );
+
+    const audit =
+      trail();
+
+    const checkpoint =
+      audit.checkpoint();
+
+    assert.equal(
+      verifyAuditCheckpoint(
+        audit.snapshot(),
+        checkpoint
+      ),
+      true
+    );
+  }
+);
+
+test(
+  "detects tail truncation against a known checkpoint",
+  async () => {
+    const {
+      verifyAuditCheckpoint
+    } =
+      await import(
+        "../dist/lib/audit-trail.js"
+      );
+
+    const audit =
+      trail();
+
+    const checkpoint =
+      audit.checkpoint();
+
+    const truncated =
+      audit.snapshot();
+
+    truncated.pop();
+
+    assert.equal(
+      verifyAuditCheckpoint(
+        truncated,
+        checkpoint
+      ),
+      false
+    );
+  }
+);

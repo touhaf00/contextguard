@@ -8,6 +8,7 @@ import {
 } from "../types.js";
 
 import type {
+  AuditCheckpoint,
   AuditEvent,
   AuditEventType
 } from "../types.js";
@@ -216,6 +217,56 @@ export function verifyAuditEvents(
   return true;
 }
 
+export function verifyAuditCheckpoint(
+  events: readonly AuditEvent[],
+  checkpoint: AuditCheckpoint
+): boolean {
+  if (
+    !Number.isInteger(
+      checkpoint.event_count
+    ) ||
+    checkpoint.event_count < 0
+  ) {
+    return false;
+  }
+
+  if (
+    checkpoint.head_hash !== null &&
+    !/^[0-9a-f]{64}$/i.test(
+      checkpoint.head_hash
+    )
+  ) {
+    return false;
+  }
+
+  if (
+    events.length !==
+    checkpoint.event_count
+  ) {
+    return false;
+  }
+
+  if (
+    !verifyAuditEvents(
+      events
+    )
+  ) {
+    return false;
+  }
+
+  const actualHead =
+    events.length > 0
+      ? events[
+          events.length - 1
+        ].event_hash
+      : null;
+
+  return (
+    actualHead ===
+    checkpoint.head_hash
+  );
+}
+
 export interface AppendAuditOptions {
   eventId?: string;
   timestamp?: string;
@@ -321,5 +372,23 @@ export class AuditTrail {
     return verifyAuditEvents(
       this.events
     );
+  }
+
+  checkpoint():
+    AuditCheckpoint {
+    const head =
+      this.events.length > 0
+        ? this.events[
+            this.events.length - 1
+          ].event_hash
+        : null;
+
+    return {
+      event_count:
+        this.events.length,
+
+      head_hash:
+        head
+    };
   }
 }
