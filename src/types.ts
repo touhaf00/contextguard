@@ -223,6 +223,47 @@ export type FinalStatus =
   | "STOPPED_UNKNOWN"
   | "STOPPED_REVIEW";
 
+export const ACTION_TYPES = [
+  "PROCEED_TO_NEXT_STAGE"
+] as const;
+
+export type ActionType =
+  (typeof ACTION_TYPES)[number];
+
+export interface ActionIntent {
+  intent_id: string;
+
+  action_type: ActionType;
+
+  repository: string;
+
+  target: Mission["target"];
+
+  locked_sha: string;
+
+  assessment_digest: string;
+
+  worker_decision: "READY";
+  guard_verdict: "PASS";
+
+  verified_claim_ids: string[];
+
+  created_at: string;
+}
+
+export interface ActionLock {
+  approval_id: string;
+
+  intent: ActionIntent;
+
+  fingerprint: string;
+
+  status: "PENDING" | "APPROVED";
+
+  created_at: string;
+  approved_at?: string;
+}
+
 export interface OrchestrationResult {
   repository: string;
   target: Mission["target"];
