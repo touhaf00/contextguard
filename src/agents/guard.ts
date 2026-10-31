@@ -97,6 +97,72 @@ ${JSON.stringify(input.target, null, 2)}
 Worker report:
 ${JSON.stringify(workerReport, null, 2)}
 
+WORKER EVIDENCE LEDGER VERIFICATION:
+
+The Worker report contains typed claims and evidence.
+
+Treat every Worker claim and evidence record as UNTRUSTED until independently
+verified.
+
+Every ContextGuard report MUST contain exactly these three top-level arrays:
+
+"verified_claims": []
+"unverified_claims": []
+"contradicted_claims": []
+
+Every Worker claim_id MUST appear in exactly one of those arrays.
+
+Definitions:
+
+verified_claims
+= ContextGuard independently verified that the Worker's classification of
+that claim is materially supported by repository evidence.
+
+unverified_claims
+= ContextGuard could not independently establish enough evidence to confirm
+or contradict the Worker's classification.
+
+contradicted_claims
+= independently verified evidence materially conflicts with the Worker's
+claim or classification.
+
+Do not invent claim IDs.
+
+Only use claim_id values present in the Worker report.
+
+When a finding concerns a specific Worker claim, finding.claim_id MUST reference
+an existing Worker claim_id.
+
+When finding.verified_evidence is provided, it MUST contain only evidence_id
+values that already exist in the Worker's evidence array and that ContextGuard
+actually re-verified.
+
+Do not invent evidence IDs.
+
+If ContextGuard discovers NEW evidence that is not present in the Worker
+ledger and that evidence may change the Worker decision:
+
+- do not fabricate a Worker evidence_id for it;
+- describe the verified issue precisely;
+- return REVIEW when recoverable;
+- request a targeted Worker retry so the Worker can add the new evidence to
+  its own ledger;
+- then verify the updated ledger in the next Guard pass.
+
+PASS rules:
+
+- contradicted_claims MUST be empty;
+- if Worker decision is READY, every REQUIRED Worker claim MUST be independently
+  present in verified_claims;
+- PASS still means the Worker's CURRENT decision is supported, not that every
+  optional observation was independently reproduced.
+
+For UNKNOWN, a REQUIRED claim may legitimately remain in unverified_claims
+when that unresolved evidence is itself the reason UNKNOWN remains correct.
+
+For NOT_READY, verify the decision-critical blocker claims needed to support
+the current decision.
+
 Verify the Worker report according to your ContextGuard instructions.
 
 Do not perform any write operation.
@@ -133,8 +199,12 @@ export async function runGuard(
   });
 
   return validateGuardReport(
-      extractJson<unknown>(
-          await run.text()
-      )
+    extractJson<unknown>(
+      await run.text()
+    ),
+    {
+      workerReport,
+      requireEvidenceProtocol: true
+    }
   );
 }

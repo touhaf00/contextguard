@@ -316,3 +316,148 @@ test(
     );
   }
 );
+
+test(
+  "strict runtime mode rejects Worker report without Evidence Protocol",
+  () => {
+    const report =
+      baseWorker();
+
+    delete report.claims;
+    delete report.evidence;
+
+    assert.throws(
+      () =>
+        validateWorkerReport(
+          report,
+          {
+            requireEvidenceProtocol:
+              true
+          }
+        ),
+      /Evidence Protocol is required/
+    );
+  }
+);
+
+test(
+  "strict runtime mode accepts a valid Evidence Protocol",
+  () => {
+    assert.doesNotThrow(
+      () =>
+        validateWorkerReport(
+          baseWorker(),
+          {
+            requireEvidenceProtocol:
+              true
+          }
+        )
+    );
+  }
+);
+
+test(
+  "compatibility mode still accepts legacy Worker reports",
+  () => {
+    const report =
+      baseWorker();
+
+    delete report.claims;
+    delete report.evidence;
+
+    assert.doesNotThrow(
+      () =>
+        validateWorkerReport(
+          report
+        )
+    );
+  }
+);
+
+test(
+  "strict runtime rejects evidence from another repository",
+  () => {
+    const report =
+      baseWorker({
+        evidence: [
+          {
+            ...baseWorker().evidence[0],
+            repository:
+              "attacker/other-repository"
+          }
+        ]
+      });
+
+    assert.throws(
+      () =>
+        validateWorkerReport(
+          report,
+          {
+            requireEvidenceProtocol:
+              true,
+            expectedRepository:
+              "example/project"
+          }
+        ),
+      /repository must match the assessed repository/
+    );
+  }
+);
+
+test(
+  "rejects target-bound evidence when target resolution is unresolved",
+  () => {
+    const report =
+      baseWorker({
+        decision:
+          "UNKNOWN",
+
+        target_resolution: {
+          status:
+            "UNRESOLVED",
+
+          requested_type:
+            "commit",
+
+          requested_reference:
+            SHA,
+
+          reason:
+            "The exact target could not be independently resolved."
+        },
+
+        claims: [
+          {
+            claim_id:
+              "C1",
+
+            statement:
+              "Required test evidence remains unresolved.",
+
+            criticality:
+              "REQUIRED",
+
+            status:
+              "UNKNOWN",
+
+            evidence_refs:
+              []
+          }
+        ]
+      });
+
+    assert.throws(
+      () =>
+        validateWorkerReport(
+          report,
+          {
+            requireEvidenceProtocol:
+              true,
+            expectedRepository:
+              "example/project"
+          }
+        ),
+      /evidence must be empty when target_resolution is UNRESOLVED/
+    );
+  }
+);

@@ -394,7 +394,8 @@ export async function orchestrate(
       await retryWorker(
         initialWorker.threadId,
         guardReport,
-        lockedSha
+        lockedSha,
+        input.repository
       );
 
     /*

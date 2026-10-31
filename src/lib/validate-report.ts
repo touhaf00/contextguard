@@ -7,6 +7,10 @@ import {
 } from "./evidence-protocol.js";
 
 import {
+  validateGuardEvidenceLinkage
+} from "./guard-evidence.js";
+
+import {
   FINDING_TYPES
 } from "../types.js";
 
@@ -36,6 +40,16 @@ const RISK_LEVELS: readonly RiskLevel[] = [
   "HIGH",
   "CRITICAL"
 ];
+
+export interface WorkerValidationOptions {
+  requireEvidenceProtocol?: boolean;
+  expectedRepository?: string;
+}
+
+export interface GuardValidationOptions {
+  workerReport?: WorkerReport;
+  requireEvidenceProtocol?: boolean;
+}
 
 function asRecord(
   value: unknown,
@@ -540,7 +554,8 @@ function hasRetryCheck(
 }
 
 export function validateWorkerReport(
-  value: unknown
+  value: unknown,
+  options: WorkerValidationOptions = {}
 ): WorkerReport {
   const report =
     asRecord(
@@ -580,8 +595,24 @@ export function validateWorkerReport(
     validateWorkerEvidenceProtocol(
       report,
       targetResolution,
-      decision
+      decision,
+      {
+        expectedRepository:
+          options.expectedRepository
+      }
     );
+
+  if (
+    options.requireEvidenceProtocol &&
+    (
+      evidenceProtocol.claims === undefined ||
+      evidenceProtocol.evidence === undefined
+    )
+  ) {
+    throw new Error(
+      "WorkerReport Evidence Protocol is required for runtime assessments."
+    );
+  }
 
   return {
     ...report,
@@ -596,7 +627,8 @@ export function validateWorkerReport(
 }
 
 export function validateGuardReport(
-  value: unknown
+  value: unknown,
+  options: GuardValidationOptions = {}
 ): GuardReport {
   const report =
     asRecord(
@@ -671,6 +703,17 @@ export function validateGuardReport(
   validateRequestedChecks(report);
   validateFindings(report);
 
+  const evidenceLinkage =
+    validateGuardEvidenceLinkage(
+      report,
+      options.workerReport,
+      verdict,
+      {
+        requireEvidenceProtocol:
+          options.requireEvidenceProtocol
+      }
+    );
+
   /*
    * Safety invariants.
    *
@@ -739,6 +782,9 @@ export function validateGuardReport(
     claim_accuracy:
       claimAccuracy,
     risk,
+
+    ...evidenceLinkage,
+
     worker_decision_supported:
       workerDecisionSupported,
     allowed_to_act:

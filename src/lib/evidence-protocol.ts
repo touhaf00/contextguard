@@ -19,6 +19,10 @@ import type {
 const FULL_GIT_SHA =
   /^[0-9a-f]{40}$/i;
 
+export interface WorkerEvidenceProtocolOptions {
+  expectedRepository?: string;
+}
+
 function asRecord(
   value: unknown,
   label: string
@@ -142,11 +146,36 @@ function stringArray(
 
 function validateEvidence(
   rawEvidence: unknown,
-  targetResolution: TargetResolution
+  targetResolution: TargetResolution,
+  expectedRepository?: string
 ): EvidenceRecord[] {
   if (!Array.isArray(rawEvidence)) {
     throw new Error(
       "WorkerReport.evidence must be an array."
+    );
+  }
+
+  if (
+    targetResolution.status ===
+      "UNRESOLVED" &&
+    rawEvidence.length > 0
+  ) {
+    throw new Error(
+      "WorkerReport.evidence must be empty when target_resolution is UNRESOLVED."
+    );
+  }
+
+  const normalizedExpectedRepository =
+    expectedRepository
+      ?.trim()
+      .toLowerCase();
+
+  if (
+    expectedRepository !== undefined &&
+    !normalizedExpectedRepository
+  ) {
+    throw new Error(
+      "expectedRepository must be a non-empty repository identifier."
     );
   }
 
@@ -195,6 +224,17 @@ function validateEvidence(
           "repository",
           label
         );
+
+      if (
+        normalizedExpectedRepository &&
+        repository
+          .toLowerCase() !==
+          normalizedExpectedRepository
+      ) {
+        throw new Error(
+          `${label}.repository must match the assessed repository.`
+        );
+      }
 
       const targetSha =
         requiredString(
@@ -425,7 +465,8 @@ function validateClaims(
 export function validateWorkerEvidenceProtocol(
   report: Record<string, unknown>,
   targetResolution: TargetResolution,
-  decision: WorkerDecision
+  decision: WorkerDecision,
+  options: WorkerEvidenceProtocolOptions = {}
 ): {
   claims?: WorkerClaim[];
   evidence?: EvidenceRecord[];
@@ -460,7 +501,8 @@ export function validateWorkerEvidenceProtocol(
   const evidence =
     validateEvidence(
       report.evidence,
-      targetResolution
+      targetResolution,
+      options.expectedRepository
     );
 
   const claims =

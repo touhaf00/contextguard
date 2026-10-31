@@ -71,6 +71,96 @@ Never invent, abbreviate, or infer a commit SHA.
 If the target is RESOLVED, all decision-critical execution evidence must
 be evaluated against that exact resolved SHA.
 
+EVIDENCE LEDGER CONTRACT:
+
+Every Worker report MUST contain these two top-level arrays:
+
+"claims": [...]
+"evidence": [...]
+
+They are mandatory even when the final decision is UNKNOWN.
+
+CLAIMS
+
+Each claim must use:
+
+{
+  "claim_id": "C1",
+  "statement": "Atomic factual statement.",
+  "criticality": "REQUIRED | SUPPORTING",
+  "status": "SUPPORTED | UNSUPPORTED | CONTRADICTED | UNKNOWN",
+  "evidence_refs": ["E1"]
+}
+
+Rules:
+
+- claim_id values must be unique;
+- keep claims atomic;
+- REQUIRED means the claim can materially affect READY / NOT_READY / UNKNOWN;
+- SUPPORTING means useful context that is not independently decision-critical;
+- SUPPORTED and CONTRADICTED claims require at least one evidence reference;
+- UNKNOWN or UNSUPPORTED may use an empty evidence_refs array;
+- never mark a claim SUPPORTED merely because it is plausible;
+- READY requires every REQUIRED claim to be SUPPORTED.
+
+EVIDENCE
+
+Each evidence item must use:
+
+{
+  "evidence_id": "E1",
+  "source_type": "FILE | DIRECTORY | COMMIT | BRANCH | TAG | RELEASE | WORKFLOW | WORKFLOW_RUN | JOB | STEP | LOG | CHECK | PULL_REQUEST | ISSUE | CONFIGURATION | OTHER",
+  "repository": "${input.repository}",
+  "target_sha": "<full 40-character target SHA>",
+  "locator": "<precise stable locator>",
+  "observation": "<what was directly observed>",
+  "level": "CONFIGURED | EXECUTED | SUCCESS | OUTPUT_OBSERVED | SEMANTIC_EFFECT"
+}
+
+Optional:
+
+"content_hash"
+"observed_at"
+
+Evidence rules:
+
+- evidence_id values must be unique;
+- record only evidence actually observed;
+- do not invent evidence from filenames, job names, or conventions;
+- locator must be precise enough for an independent verifier to retrieve the source again;
+- when target_resolution is RESOLVED, target_sha MUST exactly equal resolved_sha;
+- if the target cannot be resolved, evidence may be [] and REQUIRED claims should remain UNKNOWN when they cannot be tied to an immutable target;
+- evidence_refs may reference only existing evidence_id values.
+
+EVIDENCE LEVELS:
+
+CONFIGURED
+= configuration or definition exists.
+
+EXECUTED
+= execution occurred.
+
+SUCCESS
+= the execution platform reports success.
+
+OUTPUT_OBSERVED
+= actual output or log content was directly inspected.
+
+SEMANTIC_EFFECT
+= the real external/resulting effect itself was independently verified.
+
+Never promote one level into another without proof.
+
+Example:
+
+A successful job named "deploy" is SUCCESS evidence.
+It is NOT automatically SEMANTIC_EFFECT evidence.
+
+A test log containing "2 passed" is OUTPUT_OBSERVED evidence.
+
+Use the minimum number of atomic claims and evidence records necessary to
+support the decision clearly.
+
 Mission:
 ${input.mission}
 
@@ -166,7 +256,34 @@ Update claims affected by the new evidence.
 Preserve previously verified claims unless new evidence contradicts them.
 Never invent evidence.
 
-If a requested check cannot be completed, report it as unchecked.
+EVIDENCE LEDGER RETRY RULES:
+
+The updated report MUST still contain complete "claims" and "evidence" arrays.
+
+Preserve existing claim_id and evidence_id values for unchanged records.
+
+Do not renumber stable claims or evidence merely because this is a retry.
+
+When new evidence is retrieved:
+
+- add a new unique evidence_id;
+- bind it to the locked SHA;
+- use the strongest evidence level actually observed;
+- update only the claims affected by that evidence;
+- add the new evidence_id to the appropriate evidence_refs.
+
+When previous evidence is contradicted, do not silently delete history.
+Update the affected claim status appropriately and describe the newly
+observed evidence in a distinct evidence record.
+
+All evidence produced during this retry MUST concern the application-locked SHA:
+
+${lockedSha}
+
+READY remains forbidden if any REQUIRED claim is not SUPPORTED.
+
+If a requested check cannot be completed, leave the affected REQUIRED claim
+UNKNOWN or UNSUPPORTED as appropriate rather than fabricating support.
 
 Do not perform any write operation.
 
@@ -200,7 +317,12 @@ export async function runWorker(
   return {
     report:
         validateWorkerReport(
-            extractJson<unknown>(raw)
+          extractJson<unknown>(raw),
+          {
+            requireEvidenceProtocol: true,
+            expectedRepository:
+              input.repository
+          }
         ),
 
     threadId:
@@ -211,7 +333,8 @@ export async function runWorker(
 export async function retryWorker(
   threadId: string,
   guardReport: GuardReport,
-  lockedSha: string
+  lockedSha: string,
+  expectedRepository: string
 ): Promise<WorkerReport> {
   const {
     client,
@@ -235,8 +358,12 @@ export async function retryWorker(
   );
 
   return validateWorkerReport(
-      extractJson<unknown>(
-          await run.text()
-      )
+    extractJson<unknown>(
+      await run.text()
+    ),
+    {
+      requireEvidenceProtocol: true,
+      expectedRepository
+    }
   );
 }

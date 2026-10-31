@@ -188,7 +188,7 @@ export interface GuardFinding {
   severity: FindingSeverity;
   claim_id?: string | null;
   description: string;
-  verified_evidence?: unknown[];
+  verified_evidence?: string[];
   required_check?: string | null;
 }
 
@@ -199,6 +199,11 @@ export interface GuardReport {
   risk: RiskLevel;
   findings?: GuardFinding[];
   requested_checks?: RequestedCheck[];
+
+  verified_claims?: string[];
+  unverified_claims?: string[];
+  contradicted_claims?: string[];
+
   worker_decision_supported: boolean;
   allowed_to_act: boolean;
   retry_recommended: boolean;
