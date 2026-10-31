@@ -8,6 +8,7 @@ import {
 } from "./agents/worker.js";
 
 import {
+  evaluateLockedResolution,
   evaluateTargetIntegrity
 } from "./lib/target-integrity.js";
 
@@ -23,6 +24,9 @@ import type {
 
 export const MAX_RETRIES = 2;
 
+export const MAX_GUARD_VERIFICATION_RETRIES =
+  1;
+
 function actionableChecks(
   guardReport: GuardReport
 ): string[] {
@@ -35,7 +39,11 @@ function actionableChecks(
       );
 
   if (requested.length > 0) {
-    return [...new Set(requested)];
+    return [
+      ...new Set(
+        requested
+      )
+    ];
   }
 
   const fallbackChecks =
@@ -49,7 +57,11 @@ function actionableChecks(
           check.trim().length > 0
       );
 
-  return [...new Set(fallbackChecks)];
+  return [
+    ...new Set(
+      fallbackChecks
+    )
+  ];
 }
 
 function requestedChecksSignature(
@@ -68,7 +80,10 @@ function requestedChecksSignature(
     .map((check) =>
       check
         .toLowerCase()
-        .replace(/\s+/g, " ")
+        .replace(
+          /\s+/g,
+          " "
+        )
         .trim()
     )
     .sort()
@@ -146,6 +161,112 @@ function blockedTargetResult(
   };
 }
 
+function verificationUnavailableResult(
+  input: Mission,
+  workerReport: WorkerReport,
+  guardReport: GuardReport,
+  lockedTargetIntegrity: TargetIntegrity,
+  retryCount: number
+): OrchestrationResult {
+  return {
+    repository:
+      input.repository,
+
+    target:
+      input.target,
+
+    /*
+     * Important:
+     *
+     * The immutable target lock remains VERIFIED.
+     * A temporary verifier failure does not erase it.
+     */
+    target_integrity:
+      lockedTargetIntegrity,
+
+    worker:
+      workerReport,
+
+    guard:
+      guardReport,
+
+    retry_count:
+      retryCount,
+
+    max_retries:
+      MAX_RETRIES,
+
+    status:
+      "STOPPED_VERIFICATION_UNAVAILABLE",
+
+    external_action_executed:
+      false,
+
+    human_approval_required:
+      false
+  };
+}
+
+async function runLockedGuardWithRecovery(
+  input: Mission,
+  workerReport: WorkerReport,
+  lockedSha: string
+) {
+  let verificationRetryCount = 0;
+
+  let guardReport =
+    await runGuard(
+      input,
+      workerReport,
+      lockedSha
+    );
+
+  while (true) {
+    const lockedCheck =
+      evaluateLockedResolution(
+        input,
+        guardReport.target_resolution,
+        lockedSha,
+        "GuardLockedTargetResolution"
+      );
+
+    if (
+      lockedCheck.status !==
+      "UNRESOLVED"
+    ) {
+      return {
+        guardReport,
+        lockedCheck,
+        verificationRetryCount
+      };
+    }
+
+    if (
+      verificationRetryCount >=
+      MAX_GUARD_VERIFICATION_RETRIES
+    ) {
+      return {
+        guardReport,
+        lockedCheck,
+        verificationRetryCount
+      };
+    }
+
+    verificationRetryCount++;
+
+    console.log(
+      `[policy] Guard verification retry ${verificationRetryCount}/${MAX_GUARD_VERIFICATION_RETRIES}`
+    );
+
+    guardReport =
+      await runGuard(
+        input,
+        workerReport,
+        lockedSha
+      );
+  }
+}
+
 export async function orchestrate(
   input: Mission
 ): Promise<OrchestrationResult> {
@@ -160,6 +281,13 @@ export async function orchestrate(
   let workerReport =
     initialWorker.report;
 
+  /*
+   * INITIAL TRUST ESTABLISHMENT
+   *
+   * Before a lock exists, both independent
+   * agents must resolve exactly the same
+   * immutable target.
+   */
   let guardReport =
     await runGuard(
       input,
@@ -203,6 +331,16 @@ export async function orchestrate(
     `[policy] Target snapshot locked: ${lockedSha}`
   );
 
+  /*
+   * Preserve the original independently
+   * established lock.
+   *
+   * A later verification outage must never
+   * destroy this snapshot.
+   */
+  const lockedTargetIntegrity =
+    targetIntegrity;
+
   while (
     guardReport.verdict === "REVIEW" &&
     retryCount < MAX_RETRIES
@@ -211,7 +349,7 @@ export async function orchestrate(
       !guardReport.retry_recommended
     ) {
       console.log(
-        "[policy] Guard did not recommend another retry"
+        "[policy] Guard did not recommend another Worker retry"
       );
 
       break;
@@ -224,7 +362,7 @@ export async function orchestrate(
 
     if (!signature) {
       console.log(
-        "[policy] No targeted checks were supplied"
+        "[policy] No targeted Worker checks were supplied"
       );
 
       break;
@@ -236,7 +374,7 @@ export async function orchestrate(
       )
     ) {
       console.log(
-        "[policy] Requested checks were already attempted"
+        "[policy] Requested Worker checks were already attempted"
       );
 
       break;
@@ -249,7 +387,7 @@ export async function orchestrate(
     retryCount++;
 
     console.log(
-      `[policy] Targeted retry ${retryCount}/${MAX_RETRIES}`
+      `[policy] Targeted Worker retry ${retryCount}/${MAX_RETRIES}`
     );
 
     workerReport =
@@ -259,13 +397,109 @@ export async function orchestrate(
         lockedSha
       );
 
-    guardReport =
-      await runGuard(
+    /*
+     * The Worker must always preserve the
+     * application lock during evidence recovery.
+     */
+    const workerLockedCheck =
+      evaluateLockedResolution(
+        input,
+        workerReport.target_resolution,
+        lockedSha,
+        "WorkerLockedTargetResolution"
+      );
+
+    if (
+      workerLockedCheck.status !==
+      "VERIFIED"
+    ) {
+      console.log(
+        `[policy] Worker violated locked target integrity: ${workerLockedCheck.status}`
+      );
+
+      targetIntegrity =
+        evaluateTargetIntegrity(
+          input,
+          workerReport.target_resolution,
+          lockedTargetIntegrity.guard,
+          lockedSha
+        );
+
+      return blockedTargetResult(
+        input,
+        workerReport,
+        guardReport,
+        targetIntegrity,
+        retryCount
+      );
+    }
+
+    /*
+     * ContextGuard gets its own recovery budget.
+     *
+     * A verifier outage is NOT the same thing as
+     * target drift and must not erase the lock.
+     */
+    const verification =
+      await runLockedGuardWithRecovery(
         input,
         workerReport,
         lockedSha
       );
 
+    guardReport =
+      verification.guardReport;
+
+    if (
+      verification.lockedCheck.status ===
+      "UNRESOLVED"
+    ) {
+      console.log(
+        "[policy] Guard verification unavailable after locked-target retry"
+      );
+
+      return verificationUnavailableResult(
+        input,
+        workerReport,
+        guardReport,
+        lockedTargetIntegrity,
+        retryCount
+      );
+    }
+
+    /*
+     * A concrete different target identity or
+     * different SHA is a real integrity failure.
+     */
+    if (
+      verification.lockedCheck.status !==
+      "VERIFIED"
+    ) {
+      console.log(
+        `[policy] Locked target integrity failed: ${verification.lockedCheck.status}`
+      );
+
+      targetIntegrity =
+        evaluateTargetIntegrity(
+          input,
+          workerReport.target_resolution,
+          guardReport.target_resolution,
+          lockedSha
+        );
+
+      return blockedTargetResult(
+        input,
+        workerReport,
+        guardReport,
+        targetIntegrity,
+        retryCount
+      );
+    }
+
+    /*
+     * Both current reports now explicitly match
+     * the immutable application lock.
+     */
     targetIntegrity =
       evaluateTargetIntegrity(
         input,

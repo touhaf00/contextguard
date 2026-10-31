@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  evaluateLockedResolution,
   evaluateTargetIntegrity,
   validateTargetResolution
 } from "../dist/lib/target-integrity.js";
@@ -330,6 +331,178 @@ test(
     assert.equal(
       integrity.locked_sha,
       undefined
+    );
+  }
+);
+
+test(
+  "accepts a locked resolution matching the immutable SHA",
+  () => {
+    const result =
+      evaluateLockedResolution(
+        mission(),
+        resolved(),
+        SHA_A
+      );
+
+    assert.equal(
+      result.status,
+      "VERIFIED"
+    );
+
+    assert.equal(
+      result.locked_sha,
+      SHA_A
+    );
+  }
+);
+
+test(
+  "treats locked target UNRESOLVED as verification unavailable without changing the lock",
+  () => {
+    const result =
+      evaluateLockedResolution(
+        mission(),
+        {
+          status: "UNRESOLVED",
+          requested_type: "branch",
+          requested_reference: "main",
+          reason:
+            "Repository verification tool was unavailable."
+        },
+        SHA_A
+      );
+
+    assert.equal(
+      result.status,
+      "UNRESOLVED"
+    );
+
+    assert.equal(
+      result.locked_sha,
+      SHA_A
+    );
+  }
+);
+
+test(
+  "rejects a different SHA after the application lock",
+  () => {
+    const result =
+      evaluateLockedResolution(
+        mission(),
+        resolved({
+          resolved_sha:
+            SHA_B
+        }),
+        SHA_A
+      );
+
+    assert.equal(
+      result.status,
+      "SHA_MISMATCH"
+    );
+  }
+);
+
+test(
+  "rejects a different requested target after the application lock",
+  () => {
+    const result =
+      evaluateLockedResolution(
+        mission(),
+        resolved({
+          requested_reference:
+            "other-branch"
+        }),
+        SHA_A
+      );
+
+    assert.equal(
+      result.status,
+      "REQUEST_MISMATCH"
+    );
+  }
+);
+
+test(
+  "locked UNRESOLVED preserves the original immutable snapshot",
+  () => {
+    const initial =
+      evaluateTargetIntegrity(
+        mission(),
+        resolved(),
+        resolved()
+      );
+
+    assert.equal(
+      initial.status,
+      "VERIFIED"
+    );
+
+    assert.equal(
+      initial.locked_sha,
+      SHA_A
+    );
+
+    const later =
+      evaluateLockedResolution(
+        mission(),
+        {
+          status: "UNRESOLVED",
+          requested_type: "branch",
+          requested_reference: "main",
+          reason:
+            "Verifier temporarily could not access repository evidence."
+        },
+        initial.locked_sha
+      );
+
+    assert.equal(
+      later.status,
+      "UNRESOLVED"
+    );
+
+    assert.equal(
+      later.locked_sha,
+      SHA_A
+    );
+  }
+);
+
+test(
+  "locked verifier resolving another SHA is real target drift",
+  () => {
+    const initial =
+      evaluateTargetIntegrity(
+        mission(),
+        resolved(),
+        resolved()
+      );
+
+    assert.equal(
+      initial.status,
+      "VERIFIED"
+    );
+
+    const later =
+      evaluateLockedResolution(
+        mission(),
+        resolved({
+          resolved_sha:
+            SHA_B
+        }),
+        initial.locked_sha
+      );
+
+    assert.equal(
+      later.status,
+      "SHA_MISMATCH"
+    );
+
+    assert.equal(
+      later.locked_sha,
+      SHA_A
     );
   }
 );

@@ -5,6 +5,7 @@ import {
 import type {
   Mission,
   TargetIntegrity,
+  TargetIntegrityStatus,
   TargetResolution,
   TargetResolutionStatus,
   TargetType
@@ -270,6 +271,115 @@ function resolutionMatchesRequest(
     resolution.requested_reference ===
     expectedReference(input)
   );
+}
+
+export interface LockedResolutionCheck {
+  status: TargetIntegrityStatus;
+  resolution: TargetResolution;
+  locked_sha: string;
+  reason?: string;
+}
+
+export function evaluateLockedResolution(
+  input: Mission,
+  value: unknown,
+  expectedLockedSha: string,
+  label = "LockedTargetResolution"
+): LockedResolutionCheck {
+  const resolution =
+    validateTargetResolution(
+      value,
+      label
+    );
+
+  const lockedSha =
+    expectedLockedSha
+      .trim()
+      .toLowerCase();
+
+  if (
+    !FULL_GIT_SHA.test(
+      lockedSha
+    )
+  ) {
+    throw new Error(
+      "expectedLockedSha must be a full 40-character Git SHA."
+    );
+  }
+
+  if (
+    !resolutionMatchesRequest(
+      input,
+      resolution
+    )
+  ) {
+    return {
+      status:
+        "REQUEST_MISMATCH",
+
+      resolution,
+
+      locked_sha:
+        lockedSha,
+
+      reason:
+        "The agent returned a target identity different from the application request."
+    };
+  }
+
+  /*
+   * Once the application has already established
+   * the immutable target lock, UNRESOLVED means
+   * this particular verifier could not re-verify it.
+   *
+   * It does NOT erase the existing application lock.
+   */
+  if (
+    resolution.status ===
+      "UNRESOLVED"
+  ) {
+    return {
+      status:
+        "UNRESOLVED",
+
+      resolution,
+
+      locked_sha:
+        lockedSha,
+
+      reason:
+        resolution.reason ??
+        "The locked target could not be re-verified."
+    };
+  }
+
+  if (
+    resolution.resolved_sha !==
+      lockedSha
+  ) {
+    return {
+      status:
+        "SHA_MISMATCH",
+
+      resolution,
+
+      locked_sha:
+        lockedSha,
+
+      reason:
+        "The agent attempted to move away from the application-locked immutable SHA."
+    };
+  }
+
+  return {
+    status:
+      "VERIFIED",
+
+    resolution,
+
+    locked_sha:
+      lockedSha
+  };
 }
 
 export function evaluateTargetIntegrity(
