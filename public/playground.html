@@ -1,0 +1,274 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Security Playground | ContextGuard</title>
+<script>
+  if (new URLSearchParams(location.search).get("embed") === "1") {
+    document.documentElement.classList.add("embedded-playground");
+  }
+</script>
+<style>
+:root {
+  color-scheme: dark;
+  --bg:#080d16;--panel:#131c2b;--border:#30405a;
+  --text:#eef3ff;--muted:#9bacc4;--accent:#819fff;
+  --green:#6ee5ad;--red:#ff8b98;--yellow:#f5c777;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;font-family:system-ui,sans-serif;color:var(--text);
+  background:radial-gradient(circle at top left,#1d3050,var(--bg) 60%);
+}
+header{
+  padding:20px max(20px,calc((100% - 1050px)/2));
+  display:flex;justify-content:space-between;align-items:center;
+  border-bottom:1px solid var(--border);
+}
+.brand{font-weight:800;font-size:20px}
+.brand span{color:var(--accent)}
+.tag{
+  border:1px solid var(--border);padding:9px 12px;
+  border-radius:30px;color:var(--green);font-size:11px;
+}
+main{max-width:1050px;margin:auto;padding:25px}
+.hero{padding:42px 0 28px}
+h1{font-size:clamp(32px,5vw,56px);line-height:1.1;margin:12px 0}
+h2{font-size:27px;margin:10px 0 20px}
+h3{margin:8px 0 14px}
+p{color:var(--muted);line-height:1.7}
+.eyebrow{font-size:11px;color:var(--accent);font-weight:800;letter-spacing:.13em}
+.notice{
+  border:1px solid #386457;border-radius:12px;
+  padding:13px 16px;color:#ade7d0;background:#173c3333;
+  margin:18px 0;font-size:12px;
+}
+.tabs{display:flex;gap:10px;margin:25px 0}
+button,select{font:inherit}
+button{
+  border:1px solid var(--border);background:#1b2a42;
+  color:var(--text);padding:13px 18px;border-radius:11px;
+  cursor:pointer;
+}
+button:hover{border-color:var(--accent)}
+button.active,.primary{background:#526fcb;color:white}
+button:disabled{opacity:.4;cursor:not-allowed}
+.panel{
+  background:var(--panel);border:1px solid var(--border);
+  padding:25px;border-radius:17px;margin-bottom:16px;
+}
+.cards,.comparison{display:grid;gap:13px;grid-template-columns:repeat(3,1fr)}
+.card{text-align:left;min-height:145px}
+.card strong,.card small{display:block;margin-top:12px}
+.card small{color:var(--muted)}
+.good{color:var(--green)}
+.warn{color:var(--yellow)}
+.bad{color:var(--red)}
+.hidden{display:none!important}
+select{
+  width:100%;padding:15px;background:#0b1422;color:white;
+  border:1px solid var(--border);border-radius:10px;margin:10px 0 18px;
+}
+.actions{display:flex;gap:10px;flex-wrap:wrap;margin:16px 0}
+.status{font-size:19px;font-weight:800}
+.comparison{grid-template-columns:1fr 1fr}
+.timeline{line-height:2;color:var(--muted)}
+code{color:var(--accent);overflow-wrap:anywhere}
+footer{
+  padding:35px 0;color:var(--muted);font-size:12px;
+  border-top:1px solid var(--border);margin-top:30px;
+}
+a{color:var(--accent)}
+@media(max-width:650px){
+ .cards,.comparison{grid-template-columns:1fr}
+ header{padding:15px}
+ .tabs button{font-size:12px;padding:10px}
+}
+html.embedded-playground body {background:transparent;}
+html.embedded-playground header,
+html.embedded-playground footer,
+html.embedded-playground .hero {display:none!important;}
+html.embedded-playground main {max-width:none;padding:0 2px;}
+html.embedded-playground .tabs {margin:6px 0 18px;}
+html.embedded-playground .panel {background:#101825;}
+html.embedded-playground .lab-lab {background:linear-gradient(140deg,#16243b,#101825 70%);}
+html.embedded-playground .tabs button {flex:1;}
+html.embedded-playground .notice {display:none;}
+@media(max-width:650px) {html.embedded-playground .tabs {flex-wrap:wrap;}}
+</style>
+</head>
+<body>
+<header>
+<div class="brand">CG <span>ContextGuard</span></div>
+<div class="tag">INTERACTIVE SIMULATION</div>
+</header>
+<main>
+<section class="hero">
+<div class="eyebrow">SECURITY PLAYGROUND</div>
+<h1>Can you break the AI's approval?</h1>
+<p>
+Investigate an AI agent's evidence, approve an action,
+then try to change what it was authorized to do.
+Discover why the final safety check matters.
+</p>
+<div class="notice">
+EDUCATIONAL SIMULATION — No live Cominty agents, no
+GitHub writes and no real execution authorization.
+</div>
+</section>
+
+<nav class="tabs">
+<button id="evidenceTab" class="active">01 · Investigate evidence</button>
+<button id="attackTab">02 · Attack the approval</button>
+</nav>
+
+<section id="evidenceView">
+<div class="panel">
+<div class="eyebrow">GITHUB CASE STUDY</div>
+<h2>Does a green CI mean production is deployed?</h2>
+<p>
+Repository: acme/web-app · Reference: v1.1.0
+</p>
+<p>
+Inspect the evidence from an illustrative snapshot of our
+earlier repository investigation.
+</p>
+</div>
+
+<div class="cards">
+<button class="panel card" data-evidence="tag">
+<div class="eyebrow">EVIDENCE 01</div>
+<strong>Repository snapshot</strong>
+<small class="good">VERIFIED</small>
+</button>
+<button class="panel card" data-evidence="ci">
+<div class="eyebrow">EVIDENCE 02</div>
+<strong>CI workflow</strong>
+<small class="good">VERIFIED</small>
+</button>
+<button class="panel card" data-evidence="deploy">
+<div class="eyebrow">EVIDENCE 03</div>
+<strong>Production deployment</strong>
+<small class="warn">NOT PROVEN</small>
+</button>
+</div>
+
+<div class="panel">
+<div class="eyebrow">EVIDENCE INSPECTOR</div>
+<h3 id="evidenceTitle">Select an evidence card</h3>
+<p id="evidenceDetail">
+Click a card to inspect what it actually proves.
+</p>
+<code id="evidenceReference"></code>
+</div>
+
+<div class="panel">
+<div class="eyebrow">CHALLENGE THE WORKER</div>
+<h3>Which agent claim should be verified?</h3>
+<select id="claimSelect">
+<option value="tag">The tag resolves to the expected commit</option>
+<option value="ci">The CI workflow succeeded</option>
+<option value="deploy">Production deployment was completed</option>
+</select>
+<button id="verifyClaim" class="primary">Ask simulated Guard to verify</button>
+<div id="claimResult" class="hidden" aria-live="polite">
+<h3 id="claimVerdict"></h3>
+<p id="claimExplanation"></p>
+</div>
+</div>
+<button id="goToAttack" class="primary">Continue to the attack lab →</button>
+</section>
+
+<section id="attackView" class="hidden">
+<div class="panel">
+<div class="eyebrow">ACTIONLOCK · ORIGINAL INTENT</div>
+<h2>GitHub issue creation</h2>
+<p>
+Repository: <strong>acme/web-app</strong>
+</p>
+<p>
+Approved action: <strong>Verify deployment evidence for v1.1.0</strong>
+</p>
+<p>Approved commit:</p>
+<code>b182a69150a65b60217ef9758b1fd771f64e7d1a</code>
+</div>
+
+<div class="panel">
+<div class="eyebrow">ATTACK LAB</div>
+<h2>Choose how to challenge the authorization</h2>
+<select id="attackSelect">
+<option value="none">Control — nothing changes</option>
+<option value="drift">Change the approved commit SHA</option>
+<option value="tamper">Change the approved issue title</option>
+<option value="missing">Remove decision-critical evidence</option>
+<option value="replay">Replay an already consumed receipt</option>
+<option value="expired">Use an expired receipt</option>
+</select>
+<p id="attackDescription"></p>
+<div class="actions">
+<button id="approveExample">Approve example</button>
+<button id="rejectExample">Reject example</button>
+</div>
+<div id="approvalState" class="warn">HUMAN APPROVAL · PENDING</div>
+<div class="actions">
+<button id="runCheck" class="primary">Run final security check</button>
+<button id="resetExperiment">Reset</button>
+</div>
+</div>
+
+<div class="panel" aria-live="polite">
+<div class="eyebrow">SECURITY VERDICT</div>
+<h2 id="verdict">AWAITING EXPERIMENT</h2>
+<p id="explanation">Choose a scenario and run the check.</p>
+<code id="observedChange"></code>
+</div>
+
+<div class="comparison">
+<div class="panel">
+<div class="eyebrow bad">HYPOTHETICAL · WITHOUT FINAL CHECK</div>
+<h3>Without ContextGuard</h3>
+<p id="withoutResult">Run an experiment.</p>
+</div>
+<div class="panel">
+<div class="eyebrow good">WITH CONTEXTGUARD · SIMULATION</div>
+<h3>With ContextGuard</h3>
+<p id="withResult">Run an experiment.</p>
+</div>
+</div>
+
+<div class="panel">
+<div class="eyebrow">SIMULATED AUDIT TIMELINE</div>
+<h3>Why did ContextGuard decide this?</h3>
+<ol id="timeline" class="timeline">
+<li>No experiment yet.</li>
+</ol>
+</div>
+</section>
+
+<footer>
+<a href="/">← Return to ContextGuard</a>
+<p>No account needed · No external action performed</p>
+</footer>
+</main>
+<script src="/playground-core.js"></script>
+<script src="/playground-lab.js"></script>
+<script>
+  if (document.documentElement.classList.contains("embedded-playground")) {
+    const reportHeight = () => {
+      const height = document.querySelector("main").getBoundingClientRect().height;
+      window.parent.postMessage(
+        { type: "contextguard:playground:height", height: Math.ceil(height) },
+        "*"
+      );
+    };
+    if (typeof ResizeObserver !== "undefined") {
+      new ResizeObserver(reportHeight).observe(document.querySelector("main"));
+    }
+    window.addEventListener("load", reportHeight);
+    window.addEventListener("resize", reportHeight);
+    reportHeight();
+  }
+</script>
+</body>
+</html>

@@ -1,0 +1,32 @@
+services:
+  - type: web
+    name: contextgard
+    runtime: docker
+    plan: free
+    region: frankfurt
+    autoDeploy: true
+    envVars:
+      - key: CONTEXTGUARD_UI_HOST
+        value: 0.0.0.0
+      - key: CONTEXTGUARD_UI_REAL_EXECUTION_ENABLED
+        value: "true"
+      - key: CONTEXTGUARD_UI_LOCAL_SESSION_ENABLED
+        value: "false"
+      - key: CONTEXTGUARD_AGENT_DRAFT_FILE
+        value: memory
+      - key: COMINTY_API_KEY
+        sync: false
+      - key: COMINTY_USER_ID
+        sync: false
+      - key: COMINTY_WORKER_AGENT_ID
+        sync: false
+      - key: COMINTY_GUARD_AGENT_ID
+        sync: false
+      - key: CONTEXTGUARD_GITHUB_APP_CLIENT_ID
+        sync: false
+      - key: CONTEXTGUARD_GITHUB_APP_CLIENT_SECRET
+        sync: false
+      - key: CONTEXTGUARD_GITHUB_APP_CALLBACK_URL
+        sync: false
+      - key: CONTEXTGUARD_GITHUB_APP_SLUG
+        sync: false

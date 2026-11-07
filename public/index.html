@@ -1,0 +1,1658 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+
+  <meta
+    name="viewport"
+    content="width=device-width, initial-scale=1.0"
+  >
+
+  <title>ContextGuard</title>
+
+  <link
+    rel="stylesheet"
+    href="/styles.css"
+  >
+</head>
+
+<body class="auth-locked">
+  <div class="noise"></div>
+
+  <header class="topbar">
+    <div class="brand">
+      <div class="logo">CG</div>
+
+      <div>
+        <div class="brand-name">
+          ContextGuard
+        </div>
+
+        <div class="brand-subtitle">
+          Cominty-powered GitHub maintenance assistant
+        </div>
+      </div>
+    </div>
+
+    <div class="topbar-status">
+      <div class="mode-badge">
+        <span class="pulse"></span>
+        Protected workflow
+      </div>
+
+      <div
+        id="connectionStatus"
+        class="mode-badge muted"
+      >
+        UI LOCKED
+      </div>
+
+      <button
+        id="logoutButton"
+        class="auth-logout-button hidden"
+        type="button"
+      >
+        Sign out
+      </button>
+    </div>
+  </header>
+
+
+  <section
+    id="authGate"
+    class="auth-gate"
+    aria-labelledby="authTitle"
+  >
+    <div id="authCard" class="auth-card">
+      <div class="auth-mark">
+        CG
+      </div>
+
+      <div class="section-label">
+        SECURE ACCESS
+      </div>
+
+      <h1 id="authTitle">
+        Sign in to ContextGuard
+      </h1>
+
+      <p id="authIntro">
+        Enter your ContextGuard access key.
+        It is used only to establish a secure browser session
+        and is not stored by the application.
+      </p>
+
+      <button id="tryDemoButton" type="button" class="demo-entry">
+        Try interactive demo — no account needed
+      </button>
+
+      <p class="demo-entry-note">
+        Explore a simulated safety workflow. No external actions.
+      </p>
+
+      <a id="githubAppConnect" href="/api/ui/github/connect" class="demo-entry demo-entry-link hidden">Connect with GitHub</a>
+      <p id="githubAppPrivacy" class="demo-entry-note hidden">Choose only the repositories you authorize for ContextGuard. Your GitHub access token stays on the server.</p>
+      <div id="operatorLoginLabel" class="demo-separator">Operator sign in</div>
+
+      <label
+        class="auth-field"
+        for="authToken"
+      >
+        Access key
+
+        <input
+          id="authToken"
+          type="password"
+          autocomplete="current-password"
+          spellcheck="false"
+          placeholder="Enter access key"
+        >
+      </label>
+
+      <button
+        id="authButton"
+        type="button"
+      >
+        Sign in
+      </button>
+
+      <p
+        id="authError"
+        class="auth-error hidden"
+        role="alert"
+      ></p>
+
+      <div id="authSecurityNote" class="auth-security-note">
+        After authentication, ContextGuard replaces the access key
+        with an opaque HttpOnly session cookie.
+      </div>
+    </div>
+
+    <div id="publicDemoPanel" class="demo-panel hidden">
+      <div class="section-label">INTERACTIVE DEMONSTRATION</div>
+      <h1>See ContextGuard in action</h1>
+      <p class="demo-intro">
+        Experience how an AI action is checked before it can proceed.
+        All results here are scripted examples, not live AI results.
+      </p>
+
+      <label class="demo-scenario-label" for="demoScenario">
+        Choose a scenario
+      </label>
+      <select id="demoScenario" class="demo-scenario">
+        <option value="unchanged">Repository stays unchanged</option>
+        <option value="drift">Repository changes after approval</option>
+      </select>
+
+      <div class="demo-progress" id="demoProgress"></div>
+
+      <div class="demo-step" aria-live="polite">
+        <div id="demoStatus" class="demo-status">PROPOSED</div>
+        <h2 id="demoTitle"></h2>
+        <p id="demoDescription"></p>
+      </div>
+
+      <div class="demo-actions">
+        <button id="demoBackButton" type="button">Back</button>
+        <button id="demoRejectButton" type="button" class="hidden">
+          Reject
+        </button>
+        <button id="demoNextButton" type="button">Continue</button>
+      </div>
+
+      <button id="demoExitButton" type="button" class="demo-exit">
+        Return to sign in
+      </button>
+
+      <p class="demo-disclaimer">
+        SIMULATION ONLY — No Cominty agents run, no real approval
+        is issued, and no GitHub issue is created.
+      </p>
+    </div>
+  </section>
+
+
+  <main class="container">
+
+    <nav class="cg-workspaces" aria-label="ContextGuard workspace">
+      <button id="workspaceLiveButton" class="cg-workspace-button active"
+        type="button" aria-pressed="true" aria-controls="liveWorkspace">
+        <span class="cg-workspace-icon" aria-hidden="true">AI</span>
+        <span><strong>GitHub Assistant</strong><small>Real repositories · Cominty agents · you approve every write</small></span>
+      </button>
+      <button id="workspacePlaygroundButton" class="cg-workspace-button"
+        type="button" aria-pressed="false" aria-controls="simulationWorkspace">
+        <span class="cg-workspace-icon" aria-hidden="true">LAB</span>
+        <span><strong>Security Playground</strong><small>Try the five attacks · simulation only · free</small></span>
+      </button>
+    </nav>
+
+    <section id="simulationWorkspace" class="cg-workspace-panel hidden" aria-label="Security Playground">
+      <div class="cg-workspace-heading">
+        <div>
+          <div class="section-label">INTERACTIVE SECURITY LAB · SIMULATION</div>
+          <h1>Test the defenses. No account actions.</h1>
+          <p>Explore the exact same investigation, evidence claims, and five attack scenarios
+          as the public Playground. All results are illustrative. Nothing is sent to Cominty
+          or GitHub, and no real authorization is issued.</p>
+        </div>
+        <span class="cg-simulation-pill">SIMULATION ONLY</span>
+      </div>
+      <div class="cg-workspace-trust">
+        <span>✓ Five attack shortcuts</span>
+        <span>✓ Three evidence claims</span>
+        <span>✓ No Cominty credits</span>
+        <span>✓ No external writes</span>
+      </div>
+      <iframe id="simulationFrame"
+        title="Interactive ContextGuard Security Playground"
+        src="/playground.html?embed=1"
+        loading="lazy"
+        referrerpolicy="same-origin"
+        sandbox="allow-scripts"
+        class="cg-simulation-frame"></iframe>
+      <p class="cg-secondary-link">Prefer a full page?
+        <a href="/playground.html" target="_blank" rel="noopener noreferrer">Open public Playground</a>.
+      </p>
+    </section>
+
+    <div id="liveWorkspace">
+
+    <section class="hero">
+      <div class="eyebrow">
+        SAFE AI ACTIONS
+      </div>
+
+      <h1>
+        Your AI investigates GitHub. You approve what it does.
+      </h1>
+
+      <p>
+        Cominty agents examine your repository and propose one action: a new issue,
+        an issue update, or a code fix as a Draft pull request. An independent Guard
+        verifies the proposal, you approve it, and the repository is checked again
+        right before anything is written.
+      </p>
+
+      <ol class="hero-steps" aria-label="How a protected action works">
+        <li><b>1</b>Propose</li>
+        <li><b>2</b>Verify</li>
+        <li><b>3</b>Review</li>
+        <li><b>4</b>Approve</li>
+        <li><b>5</b>Recheck</li>
+        <li><b>6</b>Act</li>
+      </ol>
+    </section>
+
+
+    <section class="panel control-panel">
+
+      <div class="exec-status-bar">
+        <span>Real GitHub writes</span>
+        <span
+          id="realExecutionStatus"
+          class="status neutral"
+        >
+          CHECKING SERVER POLICY
+        </span>
+      </div>
+
+
+      <section class="flow-step" id="stepRepository" aria-labelledby="stepRepositoryTitle">
+        <header class="flow-step-head">
+          <span class="flow-step-num" aria-hidden="true">1</span>
+          <div>
+            <h2 id="stepRepositoryTitle">Choose a repository</h2>
+            <p>ContextGuard can only act on repositories you have authorized. It never writes anywhere else.</p>
+          </div>
+        </header>
+        <label for="agentRepoPicker" id="agentRepoPickerLabel" class="repo-picker hidden">Authorized repositories
+          <select id="agentRepoPicker"></select>
+          <small id="agentRepoPickerStatus">Choose a repository connected to your GitHub App.</small>
+          <a id="githubAppInstallLink" class="hidden" target="_blank" rel="noopener noreferrer">Install ContextGuard on more GitHub repositories</a>
+        </label>
+        <div class="cg-agent-grid">
+          <label for="agentRepository" id="agentRepositoryField">Repository
+            <input type="text" id="agentRepository" placeholder="owner/repository" autocomplete="off" maxlength="180" />
+          </label>
+          <label for="agentBranch">Branch
+            <input type="text" id="agentBranch" placeholder="main" value="main" autocomplete="off" maxlength="180" />
+          </label>
+        </div>
+      </section>
+
+
+      <section class="flow-step" id="stepAsk" aria-labelledby="stepAskTitle">
+        <header class="flow-step-head">
+          <span class="flow-step-num" aria-hidden="true">2</span>
+          <div>
+            <h2 id="stepAskTitle">Ask Cominty to prepare an action</h2>
+            <p>Cominty reads real GitHub evidence and proposes one exact action. Nothing is written yet.</p>
+          </div>
+        </header>
+
+        <section id="issuesWorkspace" class="issues-workbench hidden" aria-labelledby="issuesTitle">
+          <div class="issues-header">
+            <div class="section-label visually-hidden">COMINTY GITHUB ASSISTANT</div>
+            <h3 id="issuesTitle" class="visually-hidden">Choose the task, or let Cominty decide</h3>
+            <p><strong>Autonomous:</strong> Cominty picks the most useful action. <strong>Guided:</strong> you pick the action and Cominty prepares it. Every write goes through independent verification, your approval, a fresh recheck and a single-use receipt.</p>
+          </div>
+          <div class="maintenance-agent-controls">
+            <div class="issues-controls" id="assistantModeControls">
+              <label>Mode
+                <select id="assistantMode">
+                  <option value="auto">Autonomous — Cominty chooses</option>
+                  <option value="guided">Guided — I choose the GitHub action</option>
+                </select>
+              </label>
+              <label id="assistantActionField" class="hidden">Action to prepare
+                <select id="assistantAction">
+                  <option value="create_issue">Create a new issue</option>
+                  <option value="comment_issue">Comment on an issue</option>
+                  <option value="add_labels">Add issue labels</option>
+                  <option value="edit_issue">Edit issue title and description</option>
+                  <option value="close_issue">Close a resolved issue</option>
+                  <option value="reopen_issue">Reopen an issue</option>
+                  <option value="propose_pr_fix">Fix issue in code → commit + Draft PR</option>
+                </select>
+              </label>
+              <label id="assistantIssueField" class="hidden">Issue number (optional — Cominty selects an open issue if empty)
+                <input id="assistantIssueNumber" type="number" min="1" step="1" placeholder="Leave empty to let Cominty choose" />
+              </label>
+            </div>
+            <label class="issues-note">Instruction for Cominty (optional)
+              <textarea id="assistantObjective" maxlength="600" rows="2" placeholder="Optional — for example: look at the failing CI job and propose a fix."></textarea>
+            </label>
+            <div class="cg-agent-actions">
+              <button id="maintenanceAutoInvestigate" type="button">Ask Cominty to propose an action</button>
+              <span class="cg-agent-cost">Uses Cominty credits · reads GitHub · writes nothing.</span>
+            </div>
+            <p id="maintenanceAgentFeedback" class="cg-agent-feedback" role="status"></p>
+            <div id="maintenanceAgentProposal" class="issues-detail hidden" aria-live="polite">
+              <h4>Cominty's proposal</h4>
+              <dl id="maintenanceAgentSummary" class="proposal-summary"></dl>
+              <details class="raw-proposal" open>
+                <summary>Exact proposal that will be locked and verified</summary>
+                <pre id="maintenanceAgentProposalBody"></pre>
+              </details>
+              <div id="codeFixReview" class="hidden" aria-label="Exact code diff and review">
+                <h4>Review the proposed code changes (nothing committed yet)</h4>
+                <p class="issues-note">Cominty proposes a reviewable Draft pull request, not a verified fix. Check every line. After the independent checks you must approve, pass a fresh recheck, and type EXECUTE before any commit is made.</p>
+                <pre id="codeFixReviewDiff" class="code-fix-diff" tabindex="0"></pre>
+              </div>
+              <button id="maintenanceAgentAuthorize" type="button">Verify &amp; authorize agent proposal</button>
+            </div>
+          </div>
+
+          <details class="advanced-block" id="manualIssueTools">
+            <summary>Handle an issue manually</summary>
+            <div class="issues-controls">
+              <label>Issue filter
+                <select id="issueState">
+                  <option value="open">Open</option><option value="closed">Closed</option><option value="all">All</option>
+                </select>
+              </label>
+              <button id="issuesLoadIssues" type="button" class="secondary-button">Load repository issues</button>
+              <label>Issue to inspect
+                <select id="issueSelect"><option value="">Select an issue</option></select>
+              </label>
+            </div>
+            <p id="issuesStatus" class="cg-agent-feedback" role="status">Select a repository above to inspect its issues.</p>
+            <article id="issueDetail" class="issues-detail hidden">
+              <h4 id="issueTitle"></h4>
+              <p id="issueMeta"></p>
+              <div id="issueLabels" class="issues-labels"></div>
+              <pre id="issueBody"></pre>
+              <a id="issueUrl" target="_blank" rel="noopener noreferrer">View this issue on GitHub</a>
+            </article>
+            <div id="issuesCompose" class="issues-compose hidden">
+              <h4>Prepare a maintenance action</h4>
+              <p class="issues-note">Choose an exact action, preview it, then send it through the same verification → approval → recheck → EXECUTE workflow.</p>
+              <div class="issues-controls">
+                <label>Action
+                  <select id="issuesAction">
+                    <option value="comment_issue">Add a comment</option>
+                    <option value="add_labels">Add labels</option>
+                    <option value="edit_issue">Edit issue title and description</option>
+                    <option value="close_issue">Close issue</option>
+                    <option value="reopen_issue">Reopen issue</option>
+                  </select>
+                </label>
+                <label id="issuesTitleField" class="hidden">Proposed new title
+                  <input id="issuesNewTitle" maxlength="256" />
+                </label>
+                <label id="issuesLabelsField" class="hidden">Labels (comma-separated)
+                  <input id="issuesNewLabels" maxlength="500" placeholder="bug, needs-investigation" />
+                </label>
+              </div>
+              <label id="issuesBodyField">Proposed comment
+                <textarea id="issuesActionBody" rows="4" maxlength="10000" placeholder="Write a comment to propose..."></textarea>
+              </label>
+              <button id="issuesPreview" type="button" class="secondary-button">Preview proposed action</button>
+              <button id="maintenanceManualAuthorize" type="button" class="secondary-button hidden">Verify &amp; authorize this action</button>
+              <pre id="issuesPreviewResult" class="issues-preview hidden" aria-live="polite"></pre>
+            </div>
+          </details>
+        </section>
+
+        <details class="advanced-block" id="classicResearch" open>
+          <summary>Research a new issue from CI evidence</summary>
+          <section class="cg-agent-assistant" id="agentIssueAssistant" aria-labelledby="agentAssistantTitle">
+            <div class="cg-agent-assistant-heading">
+              <div>
+                <h3 id="agentAssistantTitle">Ask the agent to do the research</h3>
+                <p>Tell the Worker what to investigate and receive an issue proposal based on real GitHub evidence. You review the draft; ContextGuard then verifies it independently before any approval or write.</p>
+              </div>
+              <span class="cg-agent-label">AGENT PROPOSES · YOU APPROVE</span>
+            </div>
+            <label class="cg-agent-full" for="agentObjective">What should the agent investigate?
+              <textarea id="agentObjective" rows="3" maxlength="600" placeholder="Review the latest GitHub CI runs and propose one useful, evidence-backed improvement issue for this repository.">Review recent CI evidence and suggest one actionable repository improvement. Do not claim a deployment or failure without proof.</textarea>
+            </label>
+            <div class="cg-agent-actions">
+              <button id="agentInvestigateButton" type="button">Investigate with Cominty Worker</button>
+              <span class="cg-agent-cost">Real GitHub read + Cominty agent call. May consume credits. No GitHub write.</span>
+            </div>
+            <p id="agentInvestigationState" class="cg-agent-feedback" role="status">No investigation has run yet.</p>
+            <div id="agentDraftPreview" class="cg-agent-preview hidden" aria-live="polite">
+              <div class="cg-agent-preview-header">
+                <strong>Agent-authored GitHub issue proposal</strong>
+                <span class="cg-agent-label">DRAFT · NOT EXECUTED</span>
+              </div>
+              <h4 id="agentDraftTitle"></h4>
+              <p id="agentDraftRationale"></p>
+              <pre id="agentDraftBody" class="cg-agent-draft-body"></pre>
+              <div class="cg-agent-provenance">
+                <strong>GitHub observations used</strong>
+                <code id="agentDraftSha"></code>
+                <div id="agentDraftEvidence"></div>
+              </div>
+              <div class="cg-agent-actions">
+                <button id="agentUseDraftButton" type="button">Use this exact proposal for verification</button>
+                <button id="agentDiscardDraftButton" type="button" class="secondary-button">Discard proposal</button>
+              </div>
+              <p class="cg-agent-feedback">Next: the Worker and the independent Guard verify this exact proposal. GitHub App authorization and the server's execution controls govern every write.</p>
+            </div>
+          </section>
+        </details>
+      </section>
+
+
+      <div
+        id="globalError"
+        class="global-message error hidden"
+      ></div>
+
+      <div
+        id="globalSuccess"
+        class="global-message success hidden"
+      ></div>
+
+
+      <details class="advanced-block advanced-tools" id="advancedTools" open>
+        <summary>Advanced · protect a custom action</summary>
+
+        <section class="capability-section">
+          <div class="capability-intro">
+            <div>
+              <div class="section-label">
+                PROTECTED SYSTEMS
+              </div>
+
+              <h3>
+                Choose a domain or integration
+              </h3>
+
+              <p>
+                ContextGuard uses the same authorization core
+                across code, payments, CRM, documents, cloud,
+                data and custom business systems.
+              </p>
+            </div>
+          </div>
+
+          <div
+            id="capabilityCatalog"
+            class="capability-catalog"
+          >
+            <div class="catalog-loading">
+              Loading available integrations…
+            </div>
+          </div>
+
+          <div
+            id="providerSelectionSummary"
+            class="provider-selection-summary hidden"
+          ></div>
+        </section>
+
+        <section
+          id="dynamicActionPanel"
+          class="dynamic-action-panel hidden"
+        >
+          <div class="form-section">
+            <div class="form-section-heading">
+              <span>01</span>
+
+              <div>
+                <strong>
+                  Action configuration
+                </strong>
+
+                <small>
+                  Generated from the selected ContextGuard capability
+                </small>
+              </div>
+            </div>
+
+            <label class="full-field">
+              Action
+
+              <select id="actionSelector">
+              </select>
+            </label>
+
+            <div
+              id="dynamicActionForm"
+              class="dynamic-action-form"
+            ></div>
+          </div>
+        </section>
+
+        <section class="security-lab" aria-labelledby="securityLabTitle">
+          <div class="section-label">LIVE GITHUB · VERIFIED CONTROLS</div>
+          <h3 id="securityLabTitle">Real GitHub preflight</h3>
+          <p>
+            Only the two live read-only verification paths below are implemented.
+            To explore all five attack shortcuts and three evidence claims without
+            changing GitHub, switch to Security Playground above.
+          </p>
+          <label class="security-lab-select" for="securityLabMode">
+            Verification scenario
+            <select id="securityLabMode">
+              <option value="normal">Standard preflight · actual GitHub read</option>
+              <option value="manual_drift">Real GitHub branch drift · manual external change</option>
+            </select>
+          </label>
+          <p id="securityLabGuidance" class="security-lab-guidance"></p>
+          <p class="security-lab-disclaimer">
+            Starting an authorization may call Cominty and consume credits.
+            This panel cannot push commits, create issues or bypass approval.
+            Real execution remains governed by server-side policy.
+          </p>
+        </section>
+
+        <div class="button-row">
+          <button id="startButton">
+            Start protected authorization
+          </button>
+
+          <button
+            id="resetButton"
+            class="secondary-button"
+            type="button"
+          >
+            Reset workflow
+          </button>
+        </div>
+      </details>
+    </section>
+
+
+      <div class="view-mode-switch">
+        <button
+          id="simpleModeButton"
+          class="view-mode-button active"
+          type="button"
+        >
+          Simple view
+        </button>
+
+        <button
+          id="advancedModeButton"
+          class="view-mode-button"
+          type="button"
+        >
+          Technical details
+        </button>
+      </div>
+
+
+    <section
+      id="simpleWorkflow"
+      class="simple-workflow hidden"
+      aria-live="polite"
+    >
+      <div class="simple-workflow-card">
+        <div class="simple-workflow-heading">
+          <div>
+            <div class="section-label">
+              STEPS 3–5 · VERIFY · APPROVE · EXECUTE
+            </div>
+
+            <h2>
+              Verification and approval
+            </h2>
+
+            <p>
+              An independent Guard double-checks the exact proposal.
+              Nothing is written to GitHub until you approve it and type EXECUTE.
+            </p>
+          </div>
+
+          <span
+            id="simpleWorkflowStage"
+            class="status neutral"
+          >
+            NOT STARTED
+          </span>
+        </div>
+
+        <div class="simple-progress-list">
+          <div
+            id="simpleResourceStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>Resource checked</strong>
+              <small>
+                Verify the current provider state.
+              </small>
+            </div>
+          </div>
+
+          <div
+            id="simpleAnalysisStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>AI analysis completed</strong>
+              <small>
+                Review the available evidence.
+              </small>
+            </div>
+          </div>
+
+          <div
+            id="simpleVerificationStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>Independent verification completed</strong>
+              <small>
+                Check the agent conclusion independently.
+              </small>
+            </div>
+          </div>
+
+          <div
+            id="simpleLockStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>Exact action secured</strong>
+              <small>
+                Lock the precise resource and proposed action.
+              </small>
+            </div>
+          </div>
+
+          <div
+            id="simpleApprovalStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>Your approval</strong>
+              <small>
+                A human decision is required before continuing.
+              </small>
+            </div>
+          </div>
+
+          <div
+            id="simplePreflightStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>Final safety check</strong>
+              <small>
+                Recheck the provider immediately before authorization.
+              </small>
+            </div>
+          </div>
+
+          <div
+            id="simpleReceiptStep"
+            class="simple-progress-step pending"
+          >
+            <span class="simple-progress-icon">○</span>
+
+            <div>
+              <strong>Authorization prepared</strong>
+              <small>
+                Prepare the single-use protected authorization.
+              </small>
+            </div>
+          </div>
+        </div>
+
+        <div
+          id="simpleApprovalGate"
+          class="simple-approval-gate hidden"
+        >
+          <div>
+            <strong>
+              Your approval is required
+            </strong>
+
+            <p>
+              Approve only the exact action that ContextGuard
+              has verified and secured.
+            </p>
+          </div>
+
+          <div class="button-row">
+            <button
+              id="simpleRejectButton"
+              type="button"
+              class="danger-button"
+              disabled
+            >
+              Reject
+            </button>
+
+            <button
+              id="simpleApproveButton"
+              type="button"
+              disabled
+            >
+              Approve
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="simpleContinueGate"
+          class="simple-approval-gate hidden"
+        >
+          <div>
+            <strong>
+              Ready for final safety check
+            </strong>
+
+            <p>
+              ContextGuard will revalidate the current provider state
+              before preparing the single-use authorization.
+            </p>
+          </div>
+
+          <div class="button-row">
+            <button
+              id="simpleContinueButton"
+              type="button"
+              disabled
+            >
+              Continue protected authorization
+            </button>
+          </div>
+        </div>
+
+        <div
+          id="simpleReadyPanel"
+          class="simple-ready-panel hidden"
+        >
+          <strong>
+            Ready
+          </strong>
+
+          <p>
+            The protected authorization is ready.
+          </p>
+        </div>
+      </div>
+      <div
+        id="simpleExecutionGate"
+        class="simple-approval-gate hidden"
+      >
+        <div>
+          <strong>
+            Final execution
+          </strong>
+
+          <p id="simpleExecutionNotice">
+            Waiting for server execution policy.
+          </p>
+
+          <div class="simple-execution-controls">
+            <label>
+              Type EXECUTE to confirm
+              <input
+                id="simpleExecuteConfirmation"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+                disabled
+              />
+            </label>
+
+            <button
+              id="simpleExecuteButton"
+              type="button"
+              disabled
+            >
+              Execute once
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div class="simple-workflow-footer">
+        <button id="simpleResetButton" type="button" class="secondary-button">Start over</button>
+      </div>
+
+    </section>
+
+
+    <section
+      id="workflow"
+      class="workflow hidden"
+    >
+
+      <div class="workflow-heading">
+        <div>
+          <div class="section-label">
+            AUTHORIZATION PIPELINE
+          </div>
+
+          <h2>
+            Trusted workflow
+          </h2>
+        </div>
+
+        <div
+          id="workflowStage"
+          class="status neutral"
+        >
+          NOT STARTED
+        </div>
+      </div>
+
+
+      <article id="securityLabEvidence" class="security-lab-evidence" aria-labelledby="securityLabEvidenceTitle">
+        <div class="security-lab-head">
+          <div>
+            <div class="section-label">INDEPENDENT EVIDENCE / SECURITY TEST</div>
+            <h3 id="securityLabEvidenceTitle">Security observation</h3>
+          </div>
+          <span id="securityLabResult" class="status neutral">NOT STARTED</span>
+        </div>
+        <p>
+          These values come from the authorization response. Tool usage is
+          reported by the agents; this screen is not an independently
+          signed tool-execution trace.
+        </p>
+        <div class="security-lab-facts">
+          <div><span>Scenario</span><strong id="securityLabScenarioValue">—</strong></div>
+          <div><span>Worker</span><strong id="securityLabWorker">—</strong></div>
+          <div><span>Guard</span><strong id="securityLabGuard">—</strong></div>
+          <div><span>Locked snapshot</span><code id="securityLabLockedSha">—</code></div>
+        </div>
+        <h4>Claims and independent classification</h4>
+        <ul id="securityLabClaims" class="security-lab-claims"></ul>
+        <p id="securityLabOutcome" class="security-lab-outcome" role="status">
+          No authorization response yet.
+        </p>
+      </article>
+
+      <article
+        id="snapshotCard"
+        class="step-card"
+      >
+        <div class="step-number">
+          01
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                TRUSTED PROVIDER RESOLUTION
+              </div>
+
+              <h3>
+                GitHub snapshot
+              </h3>
+            </div>
+
+            <span
+              id="snapshotStatus"
+              class="status neutral"
+            >
+              PENDING
+            </span>
+          </div>
+
+          <p>
+            ContextGuard resolves the target using trusted
+            server-side GitHub access. The browser cannot provide
+            the authoritative snapshot.
+          </p>
+
+          <div class="detail-grid">
+            <div>
+              <span>
+                Request ID
+              </span>
+
+              <code id="requestId">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Repository
+              </span>
+
+              <strong id="resolvedRepository">
+                —
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Snapshot version
+              </span>
+
+              <code id="snapshotVersion">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Observed at
+              </span>
+
+              <strong id="snapshotObservedAt">
+                —
+              </strong>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="workerCard"
+        class="step-card"
+      >
+        <div class="step-number">
+          02
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                WORKER AGENT
+              </div>
+
+              <h3>
+                Evidence investigation
+              </h3>
+            </div>
+
+            <span
+              id="workerDecision"
+              class="status neutral"
+            >
+              PENDING
+            </span>
+          </div>
+
+          <p id="workerSummary">
+            Waiting for Worker assessment.
+          </p>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>
+                Decision
+              </span>
+
+              <strong id="workerDecisionValue">
+                —
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span>
+                Confidence
+              </span>
+
+              <strong id="workerConfidence">
+                —
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span>
+                Evidence items
+              </span>
+
+              <strong id="evidenceCount">
+                —
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span>
+                Claims
+              </span>
+
+              <strong id="claimCount">
+                —
+              </strong>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="guardCard"
+        class="step-card"
+      >
+        <div class="step-number">
+          03
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                INDEPENDENT CONTEXTGUARD
+              </div>
+
+              <h3>
+                Verification
+              </h3>
+            </div>
+
+            <span
+              id="guardVerdict"
+              class="status neutral"
+            >
+              PENDING
+            </span>
+          </div>
+
+          <p id="guardSummary">
+            Waiting for independent verification.
+          </p>
+
+          <div class="metric-grid">
+            <div class="metric">
+              <span>
+                Verdict
+              </span>
+
+              <strong id="guardVerdictValue">
+                —
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span>
+                Risk
+              </span>
+
+              <strong id="guardRisk">
+                —
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span>
+                Verified claims
+              </span>
+
+              <strong id="verifiedClaims">
+                —
+              </strong>
+            </div>
+
+            <div class="metric">
+              <span>
+                Findings
+              </span>
+
+              <strong id="findingCount">
+                —
+              </strong>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="lockCard"
+        class="step-card"
+      >
+        <div class="step-number">
+          04
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                DETERMINISTIC AUTHORIZATION
+              </div>
+
+              <h3>
+                Immutable ActionLock
+              </h3>
+            </div>
+
+            <span
+              id="authorizationStatus"
+              class="status neutral"
+            >
+              PENDING
+            </span>
+          </div>
+
+          <p>
+            Deterministic application code binds the exact
+            resource snapshot, policy, runtime and proposed action.
+          </p>
+
+          <div class="detail-grid">
+            <div>
+              <span>
+                Session ID
+              </span>
+
+              <code id="sessionId">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Lock ID
+              </span>
+
+              <code id="lockId">
+                —
+              </code>
+            </div>
+
+            <div class="wide">
+              <span>
+                Lock fingerprint
+              </span>
+
+              <code id="lockFingerprint">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Action
+              </span>
+
+              <strong id="lockedAction">
+                —
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                Session expires
+              </span>
+
+              <strong id="sessionExpiresAt">
+                —
+              </strong>
+            </div>
+          </div>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="approvalCard"
+        class="step-card action-card"
+      >
+        <div class="step-number">
+          05
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                HUMAN GATE
+              </div>
+
+              <h3>
+                Explicit approval
+              </h3>
+            </div>
+
+            <span
+              id="approvalStatus"
+              class="status neutral"
+            >
+              WAITING
+            </span>
+          </div>
+
+          <p>
+            Approval applies only to the exact ActionLock shown above.
+            The browser cannot change the authoritative lock or principal.
+          </p>
+
+          <div class="button-row">
+            <button
+              id="approveButton"
+              type="button"
+              disabled
+            >
+              Approve exact action
+            </button>
+
+            <button
+              id="rejectButton"
+              type="button"
+              class="danger-button"
+              disabled
+            >
+              Reject
+            </button>
+          </div>
+
+          <div
+            id="approvalDetails"
+            class="result-box hidden"
+          ></div>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="preflightCard"
+        class="step-card action-card"
+      >
+        <div class="step-number">
+          06
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                FRESH PROVIDER CHECK
+              </div>
+
+              <h3>
+                Preflight revalidation
+              </h3>
+            </div>
+
+            <span
+              id="preflightStatus"
+              class="status neutral"
+            >
+              LOCKED
+            </span>
+          </div>
+
+          <p>
+            ContextGuard independently resolves GitHub again and compares
+            the fresh provider state with the authorized snapshot.
+          </p>
+
+          <div class="detail-grid">
+            <div>
+              <span>
+                Authorized snapshot
+              </span>
+
+              <code id="authorizedSnapshot">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Current snapshot
+              </span>
+
+              <code id="currentSnapshot">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Checked at
+              </span>
+
+              <strong id="preflightCheckedAt">
+                —
+              </strong>
+            </div>
+
+            <div>
+              <span>
+                State comparison
+              </span>
+
+              <strong id="stateComparison">
+                —
+              </strong>
+            </div>
+          </div>
+
+          <button
+            id="preflightButton"
+            type="button"
+            disabled
+          >
+            Run fresh preflight
+          </button>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="receiptCard"
+        class="step-card action-card"
+      >
+        <div class="step-number">
+          07
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                SINGLE-USE AUTHORIZATION
+              </div>
+
+              <h3>
+                Execution receipt
+              </h3>
+            </div>
+
+            <span
+              id="receiptStatus"
+              class="status neutral"
+            >
+              LOCKED
+            </span>
+          </div>
+
+          <p>
+            A receipt is issued only from trusted server state after
+            successful approval and fresh preflight verification.
+          </p>
+
+          <div class="detail-grid">
+            <div>
+              <span>
+                Receipt ID
+              </span>
+
+              <code id="receiptId">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Expires at
+              </span>
+
+              <strong id="receiptExpiresAt">
+                —
+              </strong>
+            </div>
+
+            <div class="wide">
+              <span>
+                Receipt digest
+              </span>
+
+              <code id="receiptDigest">
+                —
+              </code>
+            </div>
+          </div>
+
+          <button
+            id="receiptButton"
+            type="button"
+            disabled
+          >
+            Issue execution receipt
+          </button>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="executionCard"
+        class="step-card action-card execution-card"
+      >
+        <div class="step-number">
+          08
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                TRUSTED EXECUTOR
+              </div>
+
+              <h3>
+                External GitHub execution
+              </h3>
+            </div>
+
+            <span
+              id="executionStatus"
+              class="status neutral"
+            >
+              LOCKED
+            </span>
+          </div>
+
+          <div class="critical-warning">
+            <strong>
+              This stage can perform a REAL GitHub write.
+            </strong>
+
+            <p>
+              The receipt will be consumed once. A failed execution
+              must not be blindly retried. ContextGuard performs one final
+              provider-state revalidation immediately before the write.
+            </p>
+          </div>
+
+          <label class="execution-confirmation">
+            Type <strong>EXECUTE</strong> to unlock the final action
+
+            <input
+              id="executeConfirmation"
+              autocomplete="off"
+              placeholder="EXECUTE"
+              disabled
+            >
+          </label>
+
+          <button
+            id="executeButton"
+            type="button"
+            class="danger-button execute-button"
+            disabled
+          >
+            Execute approved GitHub action
+          </button>
+
+          <div
+            id="executionResult"
+            class="result-box hidden"
+          ></div>
+        </div>
+      </article>
+
+
+      <div class="connector">
+        <div></div>
+      </div>
+
+
+      <article
+        id="proofCard"
+        class="step-card"
+      >
+        <div class="step-number">
+          09
+        </div>
+
+        <div class="step-body">
+          <div class="step-top">
+            <div>
+              <div class="section-label">
+                POST-EXECUTION EVIDENCE
+              </div>
+
+              <h3>
+                ExecutionProof & audit
+              </h3>
+            </div>
+
+            <span
+              id="proofStatus"
+              class="status neutral"
+            >
+              NOT AVAILABLE
+            </span>
+          </div>
+
+          <p>
+            After provider-confirmed success, ContextGuard records
+            integrity-bound execution evidence and a hash-chained audit event.
+          </p>
+
+          <div class="detail-grid">
+            <div>
+              <span>
+                Proof ID
+              </span>
+
+              <code id="proofId">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Provider result
+              </span>
+
+              <strong id="providerResult">
+                —
+              </strong>
+            </div>
+
+            <div class="wide">
+              <span>
+                Proof digest
+              </span>
+
+              <code id="proofDigest">
+                —
+              </code>
+            </div>
+
+            <div>
+              <span>
+                Audit events
+              </span>
+
+              <strong id="auditEventCount">
+                —
+              </strong>
+            </div>
+
+            <div class="wide">
+              <span>
+                Audit head
+              </span>
+
+              <code id="auditHeadHash">
+                —
+              </code>
+            </div>
+          </div>
+
+          <a
+            id="githubIssueLink"
+            class="external-link hidden"
+            href="#"
+            rel="noopener noreferrer"
+            target="_blank"
+          >
+            Open provider-side GitHub evidence ↗
+          </a>
+        </div>
+      </article>
+
+
+      <section class="safety-banner">
+        <div class="shield">
+          ✓
+        </div>
+
+        <div>
+          <strong>
+            The model never owns the final execution gate.
+          </strong>
+
+          <p>
+            AI agents investigate and verify.
+            Deterministic ContextGuard code locks,
+            authorizes, consumes and executes.
+          </p>
+        </div>
+      </section>
+
+    </section>
+    </div>
+  </main>
+
+
+  <footer>
+    ContextGuard ·
+    Evidence → Verification → Authorization → Human Gate → Trusted Execution
+  </footer>
+
+
+  <script src="/app.js"></script>
+</body>
+</html>

@@ -1,0 +1,37 @@
+{
+  "name": "contextguard",
+  "version": "1.0.0",
+  "description": "Human-approved GitHub maintenance by Cominty agents, with independent verification and a final recheck before every write",
+  "license": "ISC",
+  "private": true,
+  "type": "module",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/touhaf00/contextgard.git"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/server.js",
+    "check": "tsc --noEmit",
+    "test": "npm run build && node --test tests/*.test.mjs",
+    "start:live": "env GITHUB_EXECUTION_TOKEN=\" \" GITHUB_EXECUTION_ALLOWED_REPOSITORIES=\" \" CONTEXTGUARD_UI_LOCAL_SESSION_ENABLED=false CONTEXTGUARD_UI_REAL_EXECUTION_ENABLED=true node dist/server.js"
+  },
+  "keywords": [
+    "ai-agents",
+    "human-in-the-loop",
+    "github",
+    "agent-safety",
+    "verification",
+    "cominty"
+  ],
+  "dependencies": {
+    "@cominty-ai/sdk": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "typescript": "^7.0.2"
+  }
+}
